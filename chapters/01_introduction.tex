@@ -3,93 +3,81 @@
 
 \chapter{Introduction}\label{chapter:introduction}
 
-\section{Section}
-Citation test~\parencite{latex}.
+\section{Motivation}
 
-Acronyms must be added in \texttt{main.tex} and are referenced using macros. The first occurrence is automatically replaced with the long version of the acronym, while all subsequent usages use the abbreviation.
+Arancini~\cite{arancini?}, a binary emulator, is a project at the \ac{DSE}. In the process of its development we
+observed that, as is the case with all large-scale software projects, its growing complexity started to hinder
+maintainability and progress. A particular difficulty specific to an emulator's problem domain is the fact that both
+input- and output data are binary---that is, non human-readable data, which poses significant difficulties during
+debugging in the development cycle. The most logical way of dealing with binary data is to process it programmatically:
+our initial hypothesis is that automated testing tools could, in part, alleviate these restrictions of human cognition
+and facilitate development efficiency.
 
-E.g. \texttt{\textbackslash ac\{TUM\}, \textbackslash ac\{TUM\}} $\Rightarrow$ \ac{TUM}, \ac{TUM}
+\section{Approach}
 
-For more details, see the documentation of the \texttt{acronym} package\footnote{\url{https://ctan.org/pkg/acronym}}.
-\subsection{Subsection}
+Emulators or binary translators take as input machine instructions of an \ac{ISA} $X$ and produce semantically
+equivalent instructions for an \ac{ISA} $Y$. In the special case of emulators, we call $X$ the \textit{guest} \ac{ISA}
+and $Y$ the \textit{host} \ac{ISA}. Testing a translator (with respect to its correctness) means to check whether the
+output it generates is in fact semantically equivalent to its input.
 
-See~\autoref{tab:sample}, \autoref{fig:sample-drawing}, \autoref{fig:sample-plot}, \autoref{fig:sample-listing}.
+Formal verification, if indeed the highest attainable correctness standard, is often impractical for large-scale
+projects. Thus, we employ a classical pragmatic testing paradigm in which manually compiled lists of test cases are
+checked for correctness; one obtains a \textit{heuristic certainty}.
 
-\begin{table}[htpb]
-  \caption[Example table]{An example for a simple table.}\label{tab:sample}
-  \centering
-  \begin{tabular}{l l l l}
-    \toprule
-      A & B & C & D \\
-    \midrule
-      1 & 2 & 1 & 2 \\
-      2 & 3 & 2 & 3 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+\section{Definitions}
 
-\begin{figure}[htpb]
-  \centering
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}[node distance=3cm]
-    \node (R0) {$R_1$};
-    \node (R1) [right of=R0] {$R_2$};
-    \node (R2) [below of=R1] {$R_4$};
-    \node (R3) [below of=R0] {$R_3$};
-    \node (R4) [right of=R1] {$R_5$};
+% Definition 'Program'
+A program $P_X = (x_i)_{1 \leq i \leq n}$ of an \ac{ISA} $X$ is a series of $n$ instructions, each of which is a mapping
+of program states $S_i \mapsto x_i(S_i)$. Thus, a program can be expressed as
+    $P_X : S_1 \mapsto S_{n+1} = x_n(S_n)$
+with an arbitrary fixed input state $S_1$. Two programs are \textbf{semantically equivalent} if $P_X(S) = P_Y(S)$. In
+this case, we write $P_X \equiv P_Y$.
 
-    \path[every node]
-      (R0) edge (R1)
-      (R0) edge (R3)
-      (R3) edge (R2)
-      (R2) edge (R1)
-      (R1) edge (R4);
-  \end{tikzpicture}
-  \caption[Example drawing]{An example for a simple drawing.}\label{fig:sample-drawing}
-\end{figure}
+% Definition 'translator', local discreteness
+A binary translator (which may be an emulator) can be modelled as a function $E_{X \rightarrow Y}: P_X \mapsto P_Y$. It
+is \textbf{correct} if the output program is semantically equivalent to the input program:
+    $P_X \equiv E_{X \rightarrow Y}(P_X)$.
+A binary translator is \textbf{locally discrete}, or context-independent, if it achieves $P_X \mapsto P_Y$ by mapping
+each guest instruction individually to a semantically equivalent host program:
+\begin{equation}\label{sem_eq}
+    E_{X\rightarrow Y}(P_X) = E_{X \rightarrow Y}((x_i)_{1 \leq i \leq n}) = (E_{X \rightarrow Y}(x_i))_{1 \leq i \leq n} = P_Y
+\end{equation}
+with $E_{X\rightarrow Y}(x_i) \in \mathcal{P}_Y$ (where $\mathcal{P}_Y$ is the set of all programs of $Y$). In other
+words, $E_{X\rightarrow Y}$ is distributive with respect to function application in $X$.
 
-\begin{figure}[htpb]
-  \centering
+% Result local equivalence => global equivalence
+If the semantic equivalence condition holds for each translation unit individually, it follows that it also holds globally:
+\begin{equation}
+    x_i \equiv E_{X\rightarrow Y}(x_i) \forall i \implies (x_i) \equiv (E_{X\rightarrow Y}(x_i)) \implies P_X \equiv P_Y
+\end{equation}
 
-  \pgfplotstableset{col sep=&, row sep=\\}
-  % This should probably go into a file in data/
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1000 \\
-    2 & 1500 \\
-    3 & 1600 \\
-  }\exampleA
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1200 \\
-    2 & 800 \\
-    3 & 1400 \\
-  }\exampleB
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}
-    \begin{axis}[
-        ymin=0,
-        legend style={legend pos=south east},
-        grid,
-        thick,
-        ylabel=Y,
-        xlabel=X
-      ]
-      \addplot table[x=a, y=b]{\exampleA};
-      \addlegendentry{Example A};
-      \addplot table[x=a, y=b]{\exampleB};
-      \addlegendentry{Example B};
-    \end{axis}
-  \end{tikzpicture}
-  \caption[Example plot]{An example for a simple plot.}\label{fig:sample-plot}
-\end{figure}
+\section{Focaccia}
 
-\begin{figure}[htpb]
-  \centering
-  \begin{tabular}{c}
-  \begin{lstlisting}[language=SQL]
-    SELECT * FROM tbl WHERE tbl.str = "str"
-  \end{lstlisting}
-  \end{tabular}
-  \caption[Example listing]{An example for a source code listing.}\label{fig:sample-listing}
-\end{figure}
+In practice, binary translators are implemented as locally discrete translators. Focaccia exploits this property and
+therefore takes on the endeavour of implementing the equivalence check $x \equiv E_{X \rightarrow Y}(x)$. Attempting to
+solve this directly bears the following problems:
+
+\begin{enumerate}
+    \item What is $x$? Usually, an \ac{ISA} does not have a canonical way to represent its instructions as manipulable
+        functions.
+    \item What is $E_{X \rightarrow Y}(x)$? Translators, and particularly emulators, may be unable to communicate the
+        translation they produce. The inability to generate it in the form of manipulable equations is universal.
+    \item When is $x \equiv y$? A theorem checker could solve this problem.
+    \item Comparing $x \equiv y$ is not enough, even if it were feasible, because the translation $E_{X \rightarrow
+        Y}(x) = (y_j)_{1 \leq j \leq m} \in \mathcal{P}_Y$ may be a series of \textbf{multiple} instructions in $Y$, so
+        the true question expands to: When is $x \equiv (y_j)$?
+\end{enumerate}
+
+Even though theorem solvers exist that can tackle problems 3 and 4 (for example Microsoft's Z3 theorem
+prover~\cite{Z3prover2024Mar}), problem 2 makes this direct approach impossible. We can get around this by testing
+whether $x(S) = [E_{X \rightarrow Y}(x)](S)$, which by definition implies $x \equiv E_{X \rightarrow Y}(x)$. The set of
+problems to solve reduces to:
+
+\begin{enumerate}
+    \item What is $S = x(S_0)$? We call $S$ the \textit{truth state}.
+    \item What is $S^E = [E_{X \rightarrow Y}(x_i)](S_0)$? We call the translator's output $S^E$ the \textit{test state}.
+    \item When is $S = S^E$? As program states $S$ are constants, their equality is theoretically trivial. Practically,
+        however, the start states of the guest program and the translator's output program are often not precisely
+        equal. Therefore we implement an equivalence operator $S \equiv S^E$ which represents an equality with respect
+        to differing start states. Chapter~\ref{chapter:implementation} discusses this necessity in detail.
+\end{enumerate}

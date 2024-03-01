@@ -6,6 +6,9 @@
 %\documentclass[headsepline,footsepline,footinclude=false,fontsize=11pt,paper=a4,listof=totoc,bibliography=totoc,BCOR=12mm,DIV=12]{scrbook} % two-sided
 \documentclass[headsepline,footsepline,footinclude=false,oneside,fontsize=11pt,paper=a4,listof=totoc,bibliography=totoc]{scrbook} % one-sided
 
+\usepackage{amsmath}
+\usepackage{amssymb}
+
 % TODO: change citation style in settings
 \input{settings}
 
@@ -16,8 +19,8 @@
 \newcommand*{\getSchool}{Computation, Information and Technology}
 \newcommand*{\getTitle}{Thesis title}
 \newcommand*{\getTitleGer}{Titel der Abschlussarbeit}
-\newcommand*{\getAuthor}{Author}
-\newcommand*{\getDoctype}{Bachelor's Thesis, Master's Thesis, \ldots}
+\newcommand*{\getAuthor}{Nicola Crivellin}
+\newcommand*{\getDoctype}{Master's Thesis}
 \newcommand*{\getSupervisor}{Supervisor}
 \newcommand*{\getAdvisor}{Advisor}
 \newcommand*{\getSubmissionDate}{Submission date}
@@ -43,6 +46,8 @@
 \mainmatter{}
 
 \input{chapters/01_introduction}
+\input{chapters/00_example.tex}
+\input{chapters/implementation.tex}
 % TODO: add more chapters here
 
 \appendix{}
@@ -53,6 +58,8 @@
 \begin{acronym}
 	\itemsep-.25\baselineskip
 	\acro{TUM}[TUM]{Technical University of Munich}
+    \acro{DSE}[DSE]{Chair of Distributed Systems and Operating Systems}
+    \acro{ISA}[ISA]{Instruction Set Architecture}
 	% TODO: add acronyms
 \end{acronym}
 
