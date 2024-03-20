@@ -30,8 +30,8 @@ checked for correctness; one obtains a \textit{heuristic certainty}.
 A program $P_X = (x_i)_{1 \leq i \leq n}$ of an \ac{ISA} $X$ is a series of $n$ instructions, each of which is a mapping
 of program states $S_i \mapsto x_i(S_i)$. Thus, a program can be expressed as
     $P_X : S_1 \mapsto S_{n+1} = x_n(S_n)$
-with an arbitrary fixed input state $S_1$. Two programs are \textbf{semantically equivalent} if $P_X(S) = P_Y(S)$. In
-this case, we write $P_X \equiv P_Y$.
+with an arbitrary fixed input state $S_1$. Two programs are \textbf{semantically equivalent} if $P_X(S) = P_Y(S)$ for
+all input states $S$. In this case, we write $P_X \equiv P_Y$.
 
 % Definition 'translator', local discreteness
 A binary translator (which may be an emulator) can be modelled as a function $E_{X \rightarrow Y}: P_X \mapsto P_Y$. It
@@ -51,7 +51,7 @@ If the semantic equivalence condition holds for each translation unit individual
     x_i \equiv E_{X\rightarrow Y}(x_i) \forall i \implies (x_i) \equiv (E_{X\rightarrow Y}(x_i)) \implies P_X \equiv P_Y
 \end{equation}
 
-\section{Focaccia}
+\section{Focaccia}\label{sec:intro:focaccia}
 
 In practice, binary translators are implemented as locally discrete translators. Focaccia exploits this property and
 therefore takes on the endeavour of implementing the equivalence check $x \equiv E_{X \rightarrow Y}(x)$. Attempting to
@@ -74,8 +74,10 @@ whether $x(S) = [E_{X \rightarrow Y}(x)](S)$, which by definition implies $x \eq
 problems to solve reduces to:
 
 \begin{enumerate}
-    \item What is $S = x(S_0)$? We call $S$ the \textit{truth state}.
-    \item What is $S^E = [E_{X \rightarrow Y}(x_i)](S_0)$? We call the translator's output $S^E$ the \textit{test state}.
+    \item What is $S = x(S_0)$? We call $S$ the \textit{truth state}; it can be obtained by executing $x$ with a machine
+        implementing $X$.
+    \item What is $S^E = [E_{X \rightarrow Y}(x)](S_0)$? We call $S^E$ the \textit{test state}; it is obtained by
+        executing the translation of $x$ on an initial program state.
     \item When is $S = S^E$? As program states $S$ are constants, their equality is theoretically trivial. Practically,
         however, the start states of the guest program and the translator's output program are often not precisely
         equal. Therefore we implement an equivalence operator $S \equiv S^E$ which represents an equality with respect
