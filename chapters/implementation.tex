@@ -1,6 +1,8 @@
 \chapter{Implementation}\label{chapter:implementation}
 
-\section{Local Discreteness}\label{sec:impl:local_discreteness}
+\section{The Algorithm: An Abstract Description}
+
+\subsection{Local Discreteness}\label{sec:impl:local_discreteness}
 
 Requiring a tested translator to satisfy local discreteness is imperative to verify whether $P_X \equiv E_{X \rightarrow
 Y}(P_X)$. This is because, if this requirement weren't assumed, a verifier would either have to hard-code the result of
@@ -15,46 +17,62 @@ necessity for the local discreteness assumption, it is still practically useful,
 comparing result states of full program executions would be a statement like "The program's translation is erroneous".
 This is too general of an assertion to be useful to developers. When we instead use local discreteness and check for all
 intermediate states whether $S_i = S^E_i$ (where $S_i = x_{i-1}(S_{i-1})$ and $S^E_i = E_{X \rightarrow
-Y}(x_{i-1})(S^E_{i-1})$), we can generate much more detailed information, such as "Instruction $x_i$ is translated
-incorrectly because $S_i \neq S^E_i$". This is exactly what Focaccia wants to achieve.
+Y}(x_{i-1})(S^E_{i-1})$ with $S_1 = S^E_1$ an arbitrary initial state), we can generate much more detailed information,
+such as "Instruction $x_i$ is translated incorrectly because $S_i \neq S^E_i$". This is exactly the type of feedback
+that Focaccia seeks to provide.
 
-\section{Comparing Program States}\label{sec:impl:comparison}
+Additionally, it lets the algorithm recover from errors: Even if an instruction $x_i$ turns out to be implemented
+incorrectly, thus producing an incorrect state $S^E_{i+1}$, that state is only incorrect from the viewpoint of program
+semantics. The verifier, however, can still treat it as a valid input state to all subsequent instructions $x_{j > i}$
+because the translation $E_{X \rightarrow Y}(x_j)$ is required to be locally correct for a locally discrete translator,
+that is, it must work correctly on \textbf{any} program state.
 
-A naive comparison algorithm works as follows: We run $P_X$ on one starting state $S$ and the translation $E_{X
-\rightarrow Y}(P_X)$ on another possibly different starting state $S'$, during which we record all intermediate states
-$S_i$ and $S^E_i$ (which are the result states from applying $x_i$ and $E_{X \rightarrow Y}(x_i)$ to $S_{i-1}$ and
-$S'_{i-1}$, respectively).
+\subsection{Comparing Program States}\label{sec:impl:comparison}
 
-As was hinted in section \ref{sec:intro:focaccia}, comparing program states for the sake of verifying semantic program
-equivalence is more complex than comparing register and memory content for equality; that is because the starting states
-for the execution of programs are not always equal. Instead of comparing $P_X(S) = P_Y(S')$, which does \textbf{not}
-imply $P_X \equiv P_Y$ if $S \neq S'$, the comparison must take into account the initial difference $\Delta_S = S - S'$
-and calculate a state equivalence $P_X(S) \equiv P_Y(S') \implies P_X \equiv P_Y$ with respect to it. This is the chief
-nontriviality that Focaccia's algorithm solves.
+A naive verification algorithm works as follows: We run $P_X$ on one initial state $S$ and the translation $E_{X
+\rightarrow Y}(P_X)$ on the same initial state, during which we record the respective intermediate states $S_i$ and
+$S^E_i$. For each pair of states, test whether $S_i = S^E_i$. If this equality does \textbf{not} hold, then the
+translator's implementation of $x_i$, meaning the translation $x_i \mapsto (y_j)$, is faulty.
 
-Possible contributing factors to $\Delta_S$ (subsequently collectivized as a general \textit{difference in environment})
-include:
+The intuitive way of implementing the equality operator on program states ($S = S'$) is by comparing register- and
+memory content. These values are what constitute the state of a program, and they are numeric values with a canonical
+condition for equality. However, as section \ref{sec:intro:focaccia} indicated, comparing program states is more complex
+in reality. That is because the starting states for the execution of programs are not always equal: the previous
+assumption that $S_1 = S^E_1$ is not necessarily true. In fact, it is most commonly false. Possible contributing factors
+(subsequently collectivized as a general \textit{difference in environment}) include:
 
 \begin{enumerate}
-    \item Different stack pointers.
+    \item Different initial stack pointers.
     \item Different addresses of heap allocations.
-    \item Different argument-, environment-, and auxiliary vectors.
+    \item Different environment- and auxiliary vectors. The latter is particularly interesting. It turns out that
+        the auxiliary vector provided by QEMU, for example, routinely differs from the one provided by the operating
+        system. See section \ref{sec:auxv} for more details.
 \end{enumerate}
 
-The way we incorporate effectively random permutations of starting states into the algorithm is by re-introducing
-information about the guest instruction $x$ to the algorithm, which, in order to simplify the problem, we have discarded
-when we transformed the central question from $x \equiv E_{X \rightarrow Y}(x)$ to $x(S) = [E_{X \rightarrow Y}(x)](S)$.
-Instead of running guest program and translation in parallel and comparing their intermediate states, only run the
-translation $E_{X \rightarrow Y}(P_X)$ on a start state $S^E_1$, thereby obtaining the translation's intermediate states
-$S^E_i$. Then, for each $S^E_i$, use the guest instruction $x_i$ to calculate a corresponding \textbf{expected state}
-$S_{i+1} = x_i(S^E_i)$. These represent truth states that would result from executing $x_i$ on $S^E_i$ if $x_i$ was
-implemented correctly. Finally, compare these expected states to the actual translation states: $S^E_{i+1} = S_{i+1}$.
+Therefore, instead of comparing $P_X(S) = P_Y(S')$, which does \textbf{not} imply $P_X \equiv P_Y$ if $S \neq S'$, the
+comparison must take into account the initial difference $\Delta_S = S - S'$ and establish a \textbf{state equivalence}
+$P_X(S) \equiv_{\Delta_S} P_Y(S') \implies P_X \equiv P_Y$ with respect to it. This is the chief nontriviality that
+Focaccia's algorithm solves.
 
-Expressing the pre-translation program $(x_i)$ as its instructions' true functions on program states as opposed to
-executing it natively on a semi-random starting state thus allows us to use the same starting state for both the
-translation and the truth program at each instruction. This enables the desired equality comparison $x_i(S_i) = E_{X
-\rightarrow Y}(x_i)(S_i)$. The drawback of this approach is that we now require an additional piece of information: We
-need to know $x_i$.
+The way we calculate this equivalence is by re-introducing information about the guest instructions $x_i$ to the
+algorithm which, in order to simplify the problem, we have discarded when we transformed the central question from $x
+\equiv E_{X \rightarrow Y}(x)$ to $x(S) = [E_{X \rightarrow Y}(x)](S)$. The new algorithm works as follows: Instead of
+running guest program and translation in parallel and comparing their intermediate states, only run the translation
+$E_{X \rightarrow Y}(P_X)$ on a start state $S^E_1$, thereby obtaining the translation's intermediate states $S^E_i$.
+Then, for each $S^E_i$, use the guest instruction $x_i$ to calculate a corresponding \textbf{expected state} $S_{i+1} =
+x_i(S^E_i)$. These represent truth states that would result from executing $x_i$ on $S^E_i$ if $x_i$ was implemented
+correctly. Finally, compare the expected state to the actual translation state: $S^E_{i+1} = S_{i+1}$. Again, this works
+because it does not matter to the verifier whether $S^E_{i+1}$ is a \textit{correct} state with regards to whole-program
+semantics.
+
+Decomposing the pre-translation program $(x_i)$ into its instructions and applying them selectively to the synthetic
+test states as opposed to executing it natively on a semi-random starting state thus allows us to use the same starting
+state for both the translation and the truth program at each instruction, eliminating $\Delta_S$. This enables the
+desired equality comparison $x_i(S_i) = E_{X \rightarrow Y}(x_i)(S_i)$. The drawback of this approach is that we now
+require an additional piece of information: We need to know $x_i$.
+
+Not only do we need to know what every $x_i$ is, but we also demand a way of applying it individually to an arbitrary
+program state which we determine, or, more precisely, which is being determined by the translation's execution.
 
 \section{Symbolic Execution}
 
