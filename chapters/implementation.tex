@@ -24,8 +24,8 @@ that Focaccia seeks to provide.
 Additionally, it lets the algorithm recover from errors: Even if an instruction $x_i$ turns out to be implemented
 incorrectly, thus producing an incorrect state $S^E_{i+1}$, that state is only incorrect from the viewpoint of program
 semantics. The verifier, however, can still treat it as a valid input state to all subsequent instructions $x_{j > i}$
-because the translation $E_{X \rightarrow Y}(x_j)$ is required to be locally correct for a locally discrete translator,
-that is, it must work correctly on \textbf{any} program state.
+because the translation $E_{X \rightarrow Y}(x_j)$ is required to be \textit{locally correct} for a locally discrete
+translator, that is, it must work correctly on \textbf{any} program state.
 
 \subsection{Comparing Program States}\label{sec:impl:comparison}
 
@@ -72,42 +72,184 @@ desired equality comparison $x_i(S_i) = E_{X \rightarrow Y}(x_i)(S_i)$. The draw
 require an additional piece of information: We need to know $x_i$.
 
 Not only do we need to know what every $x_i$ is, but we also demand a way of applying it individually to an arbitrary
-program state which we determine, or, more precisely, which is being determined by the translation's execution.
+program state which we determine, or, more precisely, which is being determined by the translation's execution. One
+approach would be to run a program that sets up the correct machine state, then runs the instruction in question, and
+finally reads the state back. We chose a different path: We use symbolic execution tools to translate instructions into
+equations, which we then manually apply to the states we want to test.
 
-\section{Symbolic Execution}
+\section{Symbolic Execution}\label{sec:impl:symb_exec}
 
-\subsection{Obtaining the Instruction}
+Symbolic execution is a technique in which programs are executed abstractly with symbolic values~\cite{Steinhöfel2022}.
+Certain values at any point in the program are replaced by symbols that represent multiple or all possible values.
+Symbolic execution then tracks those symbols' evolution throughout the program's execution.
+\lstlistingname~\ref{fig:symbexec_example_listing} shows a code example. In a usual \textit{concrete} execution,
+\texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example, we set
+\texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}. If, on
+the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol \texttt{a = $\alpha$},
+the symbolic execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c
+= ((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic
+symbol $\alpha$.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=Python]
+        a = ?
+        b = a - 5
+        c = a + 10 if (b % 3) == 0 else -3
+    \end{lstlisting}
+    \end{tabular}
+    \caption[Symbolic execution example]{Symbolic Execution Sample Code}\label{fig:symbexec_example_listing}
+\end{figure}
+
+% TODO: Can I use citations from Steinhöfel2022 to cite every single of the following use cases or is the single
+% reference to the Steinhöfel2022 chapter sufficient?
+
+This technique is often used to reverse-engineer program inputs, to implement symbolic debugging, or to test programs
+either by proving properties of the resulting equations (e.g.\ when is \texttt{c == 12}?) or by generating test cases
+from the equation. We use symbolic execution tools for machine code to translate instructions into manipulable
+functions/equations which we can then apply to program states via an interpreter. It turns out, that, if one executes an
+instruction via a symbolic execution engine on an input state which is not only partly but entirely symbolic, the
+resulting equation is a full representation of the transformation which is applied to a program state by that
+instruction. This is an uncommonly seen use of symbolic execution as inputs to a program are usually symbolized
+selectively, otherwise the branching complexity of full programs quickly leads to an exponential inflation of the
+equations' size as well as the number of explored paths. This is not a problem if we only trace a single instruction at
+any time: no symbolic branching conditions are ever propagated through multiple instructions. Overall, only one path
+through the program is considered and the effort thus remains linear.
+
+Formally, we denote this translation as a map from an instruction to a symbolic entity which is itself a map on program
+states: $x \mapsto \sigma$ with $x(S) = \sigma(S)$. The perceptive reader will have noticed that this translation
+resembles a locally discrete binary translator, with the addition of a \textit{correctness condition}. This is in fact
+the case. Essentially, Focaccia relies on the existence of one correct binary translator $E_{X \rightarrow \Sigma}$ which
+translates the guest \ac{ISA} $X$ to a symbolic language $\Sigma$. See section~\ref{sec:impl:symb_exec_backend} for
+further details.
+
+\subsection{Symbolic Execution Tools}
+
+A tool, in order to be useful for our specific purpose, must satisfy multiple conditions:
+
+\begin{itemize}
+    \item Symbolic execution for assembly languages (many tools operate on high-level languages); primarily x86, but
+        preferredly more
+    \item Python API
+    \item Freedom to execute single instructions symbolically on arbitrary states
+    \item Low-level access to generated symbolic expressions
+\end{itemize}
+
+The first tool in consideration was the binary analysis framework \textit{angr}~\cite{shoshitaishvili2016state}. angr is
+a mature and well-tested open source platform for control-flow graph recovery, symbolic execution, disassembly and
+lifting, and more~\cite{AngrWebsite2024Mar}. Still, angr ended up being rejected for the use as Focaccia's symbolic
+execution backend. Almost none of our tasks were easily accomplished with angr; the interface is so tuned to high-level
+cyber security tasks that our attempts to accomplish `just this one simple thing' grew into a constant battle against
+the API\@. Not only does angr bury its low-level functionality, which would have sufficed for Focaccia's purposes, under
+huge stacks of abstraction, delegation, and opaqueness, but also turned out to be slow while doing that.
+
+Further research has led us to adopt Miasm~\cite{desclaux2012miasm}, a reverse engineering framework developed by CEA IT
+Security at the French Alternative Energies and Atomic Energy Commission. Its features include
+opening/modifying/generating binary files, assembling/disassembling a host of assembly languages, emulation, symbolic
+execution, and \textbf{representing assembly semantics using an intermediate language}~\cite{cea-sec2024Mar}. The latter
+statement hints towards exactly the functionality that Focaccia requires.
+
+As a proposal for future improvement of Focaccia, it is entirely possible to build a custom abstraction layer over the
+symbolic execution backend as a means to have multiple interchangeable backends for feature- and implementation
+completeness of all desired architectures, against which we decided to do.
+
+\subsection{Obtaining an Instruction}
 
 In the first prototype, we used a disassembly framework to load a binary and disassemble it in its entirety. This was
-slow and produced lots of unnecessary computations, so we started disassembling instructions on demand, i.e. at each
-program counter only read the next instruction. This works for statically linked binaries as all information is in one
-file and can be loaded from there. In the third iteration, in order to support dynamically linked programs and even
-\ac{JIT} compiled code, we omit loading the binary entirely and instead read the next instruction directly from the
-running program's memory; this can be either a native execution (see \ref{sec:impl:concrete_exec}) or a running
-translator/emulator.
+slow and produced many unnecessary computations (disassembling instructions that are never touched), so we started
+disassembling instructions on demand, i.e., at each program counter, only read the next instruction. This works for
+statically linked binaries as all information is in one file and can be loaded from there. In the third iteration, in
+order to support dynamically linked programs and even \ac{JIT} compiled code, we omit loading the binary entirely and
+instead read the current instruction directly from the running program's memory; this is usually the concrete execution.
 
 \subsection{A Symbolic Representation}
 
-Once we have an instruction's byte code, we need to apply it to a program state.
+The component concerned with everything symbolic execution related is the \textbf{symbolic expression generator}. At the
+core, its task is to translate instructions into their symbolic representations. Figures~\ref{fig:symb_equation_mov}
+and~\ref{fig:symb_equation_add} show examples of symbolic equations generated from a \texttt{MOV} instruction and an
+\texttt{ADD} instruction, respectively.
 
-Essentially, we rely on one translator (in this case one which translates instructions into symbolic equations) to be
-implemented correctly: It is an oracle.
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \texttt{MOV        EDI, DWORD PTR [RSP + 0xC]} \\
+    \midrule
+    \begin{lstlisting}
+        RDI = {@32[RSP + 0xC] 0 32, 0x0 32 64}
+        RIP = 0x40102D
+    \end{lstlisting}
+    \end{tabular}
+    \caption{Symbolic equations for \texttt{MOV} instruction}\label{fig:symb_equation_mov}
+\end{figure}
 
-\subsection{Verifiying the Symbolic Execution Backend}
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \texttt{ADD        QWORD PTR [RSP + 0x20], 0x9} \\
+    \midrule
+    \begin{lstlisting}
+        @64[RSP + 0x20] = @64[RSP + 0x20] + 0x9
+        zf = @64[RSP + 0x20] == 0xFFFFFFFFFFFFFFF7
+        nf = (@64[RSP + 0x20] + 0x9)[63:64]
+        pf = parity((@64[RSP + 0x20] + 0x9) & 0xFF)
+        cf = (@64[RSP + 0x20] ^ ((@64[RSP + 0x20]
+             ^ (@64[RSP + 0x20] + 0x9))
+             & (@64[RSP + 0x20] ^ 0xFFFFFFFFFFFFFFF6))
+             ^ (@64[RSP + 0x20] + 0x9) ^ 0x9)[63:64]
+        of = ((@64[RSP + 0x20] ^ (@64[RSP + 0x20] + 0x9))
+             & (@64[RSP + 0x20] ^ 0xFFFFFFFFFFFFFFF6))[63:64]
+        af = (@64[RSP + 0x20] ^ (@64[RSP + 0x20] + 0x9) ^ 0x9)[4:5]
+        RIP = 0x401889
+    \end{lstlisting}
+    \end{tabular}
+    \caption[]{Symbolic equations for \texttt{ADD} instruction}\label{fig:symb_equation_add}
+\end{figure}
 
-\section{Concrete Guidance}\label{sec:impl:concrete_exec}
+The introduction to section~\ref{sec:impl:symb_exec} mentions how dealing in single, isolated instructions avoids the
+common problem of state explosion in symbolic execution on highly symbolic states.
 
-\section{Trace Mismatch}\label{sec:impl:trace_mismatch}
+\subsection{Verifying the Symbolic Execution Backend}\label{sec:impl:symb_exec_backend}
+
+Essentially, we rely on one translator (in this case, one which translates instructions into symbolic equations) to be
+implemented correctly: It is an oracle. To mitigate the uncertainty that this introduces into a tool that is supposed to
+\textbf{facilitate} certainty, we employ an online verification strategy that checks generated symbolic equations
+against the concrete reference state while recording the symbolic trace. The system warns the user when it encounters an
+incorrectly implemented instruction so that they shall not rely on the verifier's results regarding that particular
+instruction.
+
+\section{Tracing the Program}
+
+As noted above, recording an entire program as one symbolic equation is impossible. Not only do branches cause the
+equations to blow up exponentially, but any kind of loop will never be able to halt at all as the termination condition
+can never resolve to a concrete \texttt{true} or \texttt{false} answer. Focaccia's solution is to run the test program
+concretely, meaning as a native execution on the physical machine, and follow (or `\textit{trace}') that execution,
+generating symbolic equations for each instruction executed. This tactic yields one specific linear \textit{symbolic
+trace}. Expressed as a short formula: The concrete execution computes which instructions to symbolize and in what order,
+symbolic execution computes those instructions' symbolic representations.
+
+As already stated, this approach eliminates the most blatant shortcomings of symbolic execution, though, in doing so,
+induces a dependency on a certain amount of concreteness. That concreteness contains remnants of the conceptually
+eliminated initial state difference $\Delta_S$ (section~\ref{sec:impl:comparison}). The way this difference manifests
+itself is by modifying the concrete execution's path through the program, and therefore also that of the symbolic trace.
+
+\subsection{Resolving trace mismatches}\label{sec:impl:trace_mismatch}
 
 One can imagine code that behaves effectively as the following:
 
-\begin{lstlisting}[language=Python]
-    n = random()
-    if n > 0.5:
-        func_a()
-    else:
-        func_b()
-\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=Python]
+        n = random()
+        if n > 0.5:
+            func_a()
+        else:
+            func_b()
+    \end{lstlisting}
+    \end{tabular}
+    \caption[Random Branching]{Branch based on random value}\label{fig:random_branching}
+\end{figure}
 
 These situations do happen, be it during iteration over environment arrays or their content, literally deciding branches
 based on randomness, or generally any branching involving nondeterministic values (networking, time, system state, …). A
@@ -123,6 +265,23 @@ this, but is not possible with symbolic exec: state explosion>
 custom protocol as a replacement for the GDB-server protocol and provide a general online verification algorithm for
 emulators that implement this protocol specifically for verification with Focaccia. This algorithm would give the
 highest-quality results that Focaccia is able to calculate.
+
+\subsection{Auxiliary Vector}\label{sec:auxv}
+
+TODO: Show the OS's auxv and QEMU's auxv and how they differ.
+
+\subsection{Experimental: A Technique for Perfectly Matching Traces}
+
+TODO: Detail the custom-protocol implementation that reads the trace directly from the emulator.
+
+\section{Recording Emulator State}
+
+TODO: Logs, gdb-server, etc.
+
+\section{Optimizations}
+
+TODO: Explain the nontrivial speedups on the naive algorithm that I achieved, particularly the minimal snapshot
+technology.
 
 
 
