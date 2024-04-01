@@ -1,15 +1,15 @@
 \chapter{Design}\label{chapter:design}
 
-\section{The Algorithm: An Abstract Description}
+\section{The Algorithm: An Abstract Description}\label{sec:abstract_algo}
 
 \subsection{Local Discreteness}\label{sec:local_discreteness}
 
 Requiring a tested translator to satisfy local discreteness is imperative to verify whether $P_X \equiv E_{X \rightarrow
-Y}(P_X)$. This is because, if this requirement weren't assumed, a verifier would either have to hard-code the result of
-comparing every possible program of $X$ to every possible program of $Y$ (which is obvious nonsense as both of these
-sets are infinitely large) or be another sort of `magical' algorithm that is not conceivable by human reason. This
-argument simultaneously shows that every implementation of a binary translator \textbf{must necessarily} be locally
-discrete for the same reasons.
+Y}(P_X)$. This is because, if this requirement weren't assumed, a verifier would either have to know the result of
+comparing every possible program of $X$ to every possible program of $Y$ in advance (which is obvious nonsense as both
+of these sets are infinitely large) or be a sort of theoretical abstract tautology, in other words an algorithm that is
+not actually implementable. This argument simultaneously shows that every implementation of a binary translator
+\textbf{must necessarily} be locally discrete for the same reasons.
 
 However, when we use the definition of program equivalence to transform the problem into $P_X(S) = [E_{X \rightarrow
 Y}(P_X)](S)$, the global comparison of result states becomes possible again. While this removes the theoretical
@@ -41,13 +41,13 @@ in reality. That is because the starting states for the execution of programs ar
 assumption that $S_1 = S^E_1$ is not necessarily true. In fact, it is most commonly false. Possible contributing factors
 (subsequently collectivized as a general \textit{difference in environment}) include:
 
-\begin{enumerate}
+\begin{itemize}
     \item Different initial stack pointers.
     \item Different addresses of heap allocations.
     \item Different environment- and auxiliary vectors. The latter is particularly interesting. It turns out that
         the auxiliary vector provided by QEMU, for example, routinely differs from the one provided by the operating
         system. See section \ref{sec:auxv} for more details.
-\end{enumerate}
+\end{itemize}
 
 Therefore, instead of comparing $P_X(S) = P_Y(S')$, which does \textbf{not} imply $P_X \equiv P_Y$ if $S \neq S'$, the
 comparison must take into account the initial difference $\Delta_S = S - S'$ and establish a \textbf{state equivalence}
@@ -117,12 +117,15 @@ equations' size as well as the number of explored paths. This is not a problem i
 any time: no symbolic branching conditions are ever propagated through multiple instructions. Overall, only one path
 through the program is considered and the effort thus remains linear.
 
-Formally, we denote this translation as a map from an instruction to a symbolic entity which is itself a map on program
-states: $x \mapsto \sigma$ with $x(S) = \sigma(S)$. The perceptive reader will have noticed that this translation
-resembles a locally discrete binary translator, with the addition of a \textit{correctness condition}. This is in fact
-the case. Essentially, Focaccia relies on the existence of one correct binary translator $E_{X \rightarrow \Sigma}$ which
-translates the guest \ac{ISA} $X$ to a symbolic language $\Sigma$. See section~\ref{sec:symb_exec_backend} for
-further details.
+Formally, we denote this use of symbolic execution as a map $G$ from an instruction $x \in X$ to a symbolic entity
+$\sigma$ which is composed from a symbolic alphabet $\Sigma$ and is itself a function of program states: $G_{X
+\rightarrow \Sigma}: x \mapsto \sigma$ with $x(S) = \sigma(S)$ where $G$ is called the \textbf{symbolic expression
+generator} for $X$. The perceptive reader will have noticed that this translation resembles a locally discrete binary
+translator (though a generalized version whose target language is not specifically an \ac{ISA}, but an abstract symbolic
+language), with the addition of a \textit{correctness condition}. This is in fact the case. Essentially, Focaccia relies
+on the existence of one correct binary translator $E_{X \rightarrow \Sigma}$ which translates the guest \ac{ISA} $X$ to
+a symbolic language $\Sigma$. See section~\ref{sec:symb_exec_backend} for further discussion of problems that this
+approach bears.
 
 \subsection{Obtaining an Instruction}
 
@@ -131,14 +134,16 @@ slow and produced many unnecessary computations (disassembling instructions that
 disassembling instructions on demand, i.e., at each program counter, only read the next instruction. This works for
 statically linked binaries as all information is in one file and can be loaded from there. In the third iteration, in
 order to support dynamically linked programs and even \ac{JIT} compiled code, we omit loading the binary entirely and
-instead read the current instruction directly from the running program's memory; this is usually the concrete execution.
+instead read the current instruction directly from the running program's memory; this is usually a concrete execution
+running alongside Focaccia.
 
 \subsection{A Symbolic Representation}
 
-The component concerned with everything symbolic execution related is the \textbf{symbolic expression generator}. At the
-core, its task is to translate instructions into their symbolic representations. Figures~\ref{fig:symb_equation_mov}
-and~\ref{fig:symb_equation_add} show examples of symbolic equations generated from a \texttt{MOV} instruction and an
-\texttt{ADD} instruction, respectively.
+The component concerned with everything symbolic execution related is the \textbf{symbolic expression generator}. Its
+task is to translate instructions into corresponding symbolic representations which capture the instructions' semantics.
+Figures~\ref{fig:symb_equation_mov} and~\ref{fig:symb_equation_add} show examples of symbolic equations generated from a
+\texttt{MOV} instruction and an \texttt{ADD} instruction, respectively. Section~\ref{sec:symb_expr_impl} details how
+this abstract expression generator is implemented in Focaccia and discusses the challenges involved in that.
 
 \begin{figure}[htbp]
     \centering
@@ -176,34 +181,70 @@ and~\ref{fig:symb_equation_add} show examples of symbolic equations generated fr
     \caption[]{Symbolic equations for \texttt{ADD} instruction}\label{fig:symb_equation_add}
 \end{figure}
 
-The introduction to section~\ref{sec:symb_exec} mentions how dealing in single, isolated instructions avoids the
-common problem of state explosion in symbolic execution on highly symbolic states.
-
 \subsection{Verifying the Symbolic Execution Backend}\label{sec:symb_exec_backend}
 
-Essentially, we rely on one translator (in this case, one which translates instructions into symbolic equations) to be
-implemented correctly: It is an oracle. To mitigate the uncertainty that this introduces into a tool that is supposed to
-\textbf{facilitate} certainty, we employ an online verification strategy that checks generated symbolic equations
-against the concrete reference state while recording the symbolic trace. The system warns the user when it encounters an
-incorrectly implemented instruction so that they shall not rely on the verifier's results regarding that particular
-instruction.
+As has been shown above, we rely on one translator (in this case, one which translates instructions into symbolic
+equations) to be implemented correctly: It is an oracle. Fundamentally, it allows Focaccia to predict the outcome of
+applying an instruction to an arbitrary program state, thus providing a truth against which an emulator's state can be
+tested. The disadvantage of a reliance on a correct program is the virtual impossibility for nontrivial programs to be
+correct.
+
+To mitigate the uncertainty that is thereby introduced into a tool that is supposed to \textbf{facilitate} certainty, we
+employ an online verification strategy that checks generated symbolic equations against the concrete reference state
+while recording the symbolic trace. The system warns the user when it encounters an incorrectly implemented instruction
+so that they shall not rely on the verifier's results regarding that particular instruction.
+
+We do this by reusing the exact same procedure that Focaccia uses to test binary translators in the first place, but
+this time use concrete states, i.e., correct states by definition, as inputs for calculating the expected state after an
+instruction as well as the state against which this prediction is tested: We test whether $\sigma_i(S) = S_{i+1}$. If
+the prediction made by a symbolic expression is unequal to the concrete state calculated by the processor (which, though
+it could \textit{theoretically} violate an \ac{ISA}'s specification, is still the most true calculation that we are able
+to obtain), then the symbolic expression generator $E_{X \rightarrow \Sigma}$ is incorrect. The pseudocode in
+\figurename~\ref{fig:symb_generator_verification} illustrates this algorithm.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=Python]
+        while program.is_running():
+            instr = program.current_instruction
+            state = program.current_state
+
+            # Verify the previous instruction's predicted state
+            if state != expected_state:
+                warn_incorrect(program.prev_instruction)
+
+            # Predict the next program state
+            symb_expr = gen_symb_expr(instr)
+            expected_state = symb_expr(state)
+
+            program.step()
+    \end{lstlisting}
+    \end{tabular}
+    \caption{Verification of the Symbolic Expression Generator}\label{fig:symb_generator_verification}
+\end{figure}
 
 \section{Tracing the Program}
 
-As noted above, recording an entire program as one symbolic equation is impossible. Not only do branches cause the
-equations to blow up exponentially, but any kind of loop will never be able to halt at all as the termination condition
-can never resolve to a concrete \texttt{true} or \texttt{false} answer. Focaccia's solution is to run the test program
-concretely, meaning as a native execution on the physical machine, and follow (or `\textit{trace}') that execution,
-generating symbolic equations for each instruction executed. This tactic yields one specific linear \textit{symbolic
-trace}. Expressed as a short formula: The concrete execution computes which instructions to symbolize and in what order,
-while symbolic execution computes those instructions' symbolic representations.
+As noted in the introduction to section~\ref{sec:symb_exec}, recording an entire program as one symbolic equation is
+impossible. Not only do branches cause the equations to blow up exponentially, but any kind of loop will never be able
+to halt at all as the termination condition can never resolve to a concrete \texttt{true} or \texttt{false} answer.
+
+Focaccia's solution is to run the test program concretely, meaning as a native execution on the physical machine,
+alongside the symbolic expression generator and to follow (or `\textit{trace}') that execution, generating symbolic
+equations for each instruction executed. In this scenario, the concrete execution defines which instructions to
+symbolize and in what order, while the symbolic expression generator computes those instructions' symbolic
+representations. This tactic yields one specific linear \textit{symbolic trace}, which is the translation $E_{X
+\rightarrow \Sigma}(P_X) = P_\Sigma = (\sigma_i)$ of a program into symbolic entities.
 
 As already stated, this approach eliminates the most blatant shortcomings of symbolic execution, though, in doing so,
 induces a dependency on a certain amount of concreteness. That concreteness contains remnants of the conceptually
 eliminated initial state difference $\Delta_S$ (section~\ref{sec:comparison}). The way this difference manifests
 itself is by modifying the concrete execution's path through the program, and therefore also that of the symbolic trace.
 
-\subsection{Resolving trace mismatches}\label{sec:trace_mismatch}
+\subsection{Trace Mismatches}\label{sec:trace_mismatch}
+
+\subsubsection{Nondeterministic Branching}
 
 One can imagine code that behaves effectively as the following:
 
@@ -218,31 +259,136 @@ One can imagine code that behaves effectively as the following:
             func_b()
     \end{lstlisting}
     \end{tabular}
-    \caption[Random Branching]{Branch based on random value}\label{fig:random_branching}
+    \caption{Nondeterministic branching}\label{fig:random_branching}
 \end{figure}
 
 These situations do happen, be it during iteration over environment arrays or their content, literally deciding branches
-based on randomness, or generally any branching involving nondeterministic values (networking, time, system state, …). A
-specific situation in which this routinely happens is the libc initialization code, where auxiliary and environment
-vectors are processed. These nondeterministic mutations can cause the symbolic program trace differ from the tested
+based on randomness, or generally any branching involving nondeterministic values, such as network, time, system state,
+… A specific situation in which this routinely happens is the libc initialization code, where auxiliary and environment
+vectors are processed. These nondeterministic mutations can cause the symbolic program trace to differ from the tested
 program trace.
 
-Per-instruction symbolism cannot process these situations; the symbolic truth simply does not provide information on
-instructions that were not part of its program execution. An algorithm <no local discreteness assumption could solve
-this, but is not possible with symbolic exec: state explosion>
+This is a problem for Focaccia's standard algorithm where a symbolic trace is computed from a concrete trace, the
+process of which can be conceptualized as a pre-recordment because it never interacts with the tested emulator's state
+directly (which is purposefully so as the emulator's correctness cannot be trusted and should therefore not partake in
+\textit{truth} generation), and is afterwards applied to an emulator's program trace. If the latter contains
+instructions that were never executed in the concrete execution because of different branching behaviour, the symbolic
+trace will not contain information about these instructions and cannot test them.
+
+As this problem is unresolvable by a lack of information, the verifier resorts to skipping instructions that are not
+included in the symbolic trace and trying to find a point where both traces agree again. Warnings are issued to the user
+when instructions are skipped. The problem is improvable by ensuring similar initial conditions for the emulator's
+execution and the symbolic trace recorder (this is effort that the user has to bear), yet rarely avoidable.
+Section~\ref{sec:experimental_trace_match} discusses an experimental attempt to improve this situation, though it does
+suffer from major flaws.
+
+\subsubsection{Emulation Granularity}
+
+Another kind of trace mismatch happens if the tested emulator provides its trace on a different granularity level than
+Focaccia does. A common example is emulators stepping the program forward by \textbf{basic blocks}, whereas Focaccia
+always generates symbolic traces at single-instruction granularity. \figurename~\ref{fig:trace_granularity} shows a diff
+view of a real-life trace granularity mismatch. On the left side of the diff, we see an emulator's basic-block-based
+instruction trace (rows are addresses of executed instructions), whereas the right side shows Focaccia's
+single-instruction symbolic trace generated from a concrete execution of the same executable. The first basic block
+ranges from instruction \texttt{0x401032} through \texttt{0x401043}. The second basic block starts at \texttt{0x401048},
+etc.
+
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figures/trace_diff_view.png}
+    \caption{Different Program Trace Granularities}\label{fig:trace_granularity}
+\end{figure}
+
+This mismatch is easily resolvable: In the higher-granularity symbolic trace, merge symbolic equations for all
+instructions of the same basic block into a single equation, i.e., transform the higher-granularity trace into a
+lower-granularity one. This will yield larger equations, though they will not blow up exponentially as basic blocks by
+definition do not include branches. A simple post-processing algorithm operating on the two traces can detect basic
+block boundaries reliably because one basic block never includes the same instruction multiple times.
+
+Problematic is the case where both granularity mismatch \textbf{and} trace divergence happen in the same trace; this is
+fundamentally unsolvable in a trace post-processing scenario because one cannot differentiate between excess
+instructions resulting from different branching behaviour and excess instructions from higher trace granularity.
+
+\subsection{Auxiliary Vector}\label{sec:auxv}
+
+An interesting source of difference in branching behaviour between concrete- and emulator execution is the auxiliary
+vector on Linux systems, which is "a mechanism that the kernel's ELF binary loader uses to pass certain information to
+user space when a program is executed"~\cite{getauxval2024Mar}. Libc's initialization code (at least glibc as well as
+musl libc~\cite{MuslLibc2024Feb}) iterates over that array to bring it into a representation that is indexable by entry
+names, thereby depending its branching behaviour on the array's size. It turns out that QEMU, at least on some systems,
+passes an auxiliary vector to the application that is different from the native auxiliary vector on the same system;
+\figurename~\ref{fig:auxv_comparison} shows an example. While a custom method for launching both the tested emulator and
+the symbolic trace recorder could in theory ensure equal environment arrays, the same is not possible for the
+kernel-provided auxiliary vector.
+
+This shows that branch-based trace mismatches are not a rare phenomenon.
+
+\begin{figure}[htpb]
+    \begin{subfigure}[t]{0.4\linewidth}
+        \begin{lstlisting}
+            AT_BASE : 0x790a3a4f3000
+            AT_CLKTCK : 0x7ffd4e2f21b9
+            AT_EGID : 0x3e8
+            AT_ENTRY : 0x5d141499c050
+            AT_EUID : 0x3e8
+            AT_EXECFN : 0x7ffd4e2f2fec
+            AT_FLAGS : 0x0
+            AT_GID : 0x3e8
+            AT_HWCAP : 0x64
+            AT_HWCAP2 : 0x2
+            AT_MINSIGSTKSZ : 0x7f0
+            AT_PAGESZ : 0x1000
+            AT_PHDR : 0x5d141499b040
+            AT_PHENT : 0x38
+            AT_PHNUM : 0xd
+            AT_PLATFORM : 0xbfebfbff
+            AT_RANDOM : 0x7ffd4e2f21a9
+            AT_RSEQ_ALIGN : 0x20
+            AT_RSEQ_FEATURE_SIZE : 0x1c
+            AT_SECURE : 0x0
+            AT_SYSINFO_EHDR : 0x7ffd4e349000
+            AT_UID : 0x3e8
+        \end{lstlisting}
+    \caption{Native AUXV}
+    \label{fig:native_auxv}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.4\linewidth}
+        \begin{lstlisting}
+            AT_BASE : 0x2aaaab2ac000
+            AT_CLKTCK : 0x2aaaab2ab7f9
+            AT_EGID : 0x3e8
+            AT_ENTRY : 0x555555557050
+            AT_EUID : 0x3e8
+            AT_EXECFN : 0x2aaaab2abfd1
+            AT_FLAGS : 0x0
+            AT_GID : 0x3e8
+            AT_HWCAP : 0x64
+            AT_PAGESZ : 0x1000
+            AT_PHDR : 0x555555556040
+            AT_PHENT : 0x38
+            AT_PHNUM : 0xd
+            AT_PLATFORM : 0xfcbfbfd
+            AT_RANDOM : 0x2aaaab2ab7e0
+            AT_SECURE : 0x0
+            AT_SYSINFO_EHDR : 0x2aaaab2e3000
+            AT_UID : 0x3e8
+        \end{lstlisting}
+        \caption{QEMU's AUXV}
+        \label{fig:qemu_auxv}
+    \end{subfigure}
+    \caption{Comparison of auxiliary vectors in native execution and QEMU}
+    \label{fig:auxv_comparison}
+\end{figure}
+
+\subsection{Experimental: A Technique for Perfectly Matching Traces}\label{sec:experimental_trace_match}
+
+TODO: Detail the custom-protocol implementation that reads the trace directly from the emulator.
 
 \textbf{NOTE} Can be eliminated for the special case of online emulator verification. We could implement a minimal
 custom protocol as a replacement for the GDB-server protocol and provide a general online verification algorithm for
 emulators that implement this protocol specifically for verification with Focaccia. This algorithm would give the
 highest-quality results that Focaccia is able to calculate.
-
-\subsection{Auxiliary Vector}\label{sec:auxv}
-
-TODO: Show the OS's auxv and QEMU's auxv and how they differ.
-
-\subsection{Experimental: A Technique for Perfectly Matching Traces}
-
-TODO: Detail the custom-protocol implementation that reads the trace directly from the emulator.
 
 \section{Recording Emulator State}
 
