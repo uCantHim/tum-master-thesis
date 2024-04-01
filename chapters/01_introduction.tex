@@ -5,26 +5,26 @@
 
 \section{Motivation}
 
-Arancini~\cite{arancini?}, a binary emulator, is a project at the \ac{DSE}. In the process of its development we
-observed that, as is the case with all large-scale software projects, its growing complexity started to hinder
-maintainability and progress. A particular difficulty specific to an emulator's problem domain is the fact that both
-input- and output data are binary---that is, non human-readable data, which poses significant difficulties during
-debugging in the development cycle. The most logical way of dealing with binary data is to process it programmatically:
-our initial hypothesis is that automated testing tools could, in part, alleviate these restrictions of human cognition
-and facilitate development efficiency.
+Arancini, a binary emulator, is a project at the \ac{DSE}. In the process of its development we observed that, as is the
+case with all large-scale software projects, its growing complexity started to hinder maintainability and progress. A
+particular difficulty specific to an emulator's problem domain is the fact that both input- and output data are
+binary---that is, non human-readable data, which poses significant difficulties during debugging in the development
+cycle. The most logical way of dealing with binary data is to process it programmatically: our initial hypothesis is
+that automated testing tools could, in part, alleviate these restrictions of human cognition and facilitate development
+efficiency.
 
 \section{Approach}
 
-Emulators or binary translators take as input machine instructions of an \ac{ISA} $X$ and produce semantically
-equivalent instructions for an \ac{ISA} $Y$. In the special case of emulators, we call $X$ the \textit{guest} \ac{ISA}
-and $Y$ the \textit{host} \ac{ISA}. Testing a translator (with respect to its correctness) means to check whether the
-output it generates is in fact semantically equivalent to its input.
+Emulators or, in general, binary translators take as input machine instructions of an \ac{ISA} $X$ and produce
+semantically equivalent instructions for an \ac{ISA} $Y$. In the special case of emulators, we call $X$ the
+\textit{guest} \ac{ISA} and $Y$ the \textit{host} \ac{ISA}. Testing a translator (with respect to correctness) means to
+check whether the output it generates is in fact semantically equivalent to its input.
 
 Formal verification, if indeed the highest attainable correctness standard, is often impractical for large-scale
 projects. Thus, we employ a classical pragmatic testing paradigm in which manually compiled lists of test cases are
 checked for correctness; one obtains a \textit{heuristic certainty}.
 
-\section{Definitions}
+\section{Definitions}\label{sec:definitions}
 
 % Definition 'Program'
 A program $P_X = (x_i)_{1 \leq i \leq n}$ of an \ac{ISA} $X$ is a series of $n$ instructions, each of which is a mapping
@@ -47,7 +47,7 @@ words, $E_{X\rightarrow Y}$ is distributive with respect to function application
 
 % Result local equivalence => global equivalence
 If the semantic equivalence condition holds for each translation unit individually, it follows that it also holds globally:
-\begin{equation}
+\begin{equation}\label{eq:local_to_global_discreteness}
     x_i \equiv E_{X\rightarrow Y}(x_i) \forall i \implies (x_i) \equiv (E_{X\rightarrow Y}(x_i)) \implies P_X \equiv P_Y
 \end{equation}
 
