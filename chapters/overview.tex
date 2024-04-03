@@ -12,14 +12,22 @@ it.
 In the domain of automated testing, our specific interest can be categorized as \textit{correctness testing}. We can
 further refine the classification by considering that the algorithm effectively compares the program's output to an
 expected oracle-based output, with no knowledge about the tested program's internal structure: it is a \textit{black
-box} approach~\cite{sawant2012software}. Thus, it inherits many of the common problems of black box testing:
+box} approach~\cite{sawant2012software}. It is noteworthy that symbolic/concolic execution is usually used as a
+white-box technique to prove properties of tested code, but Focaccia uses it to establish correctness not of the tested
+program itself, but of the tested program's \textbf{output}, because, in the special case of emulators, the output
+\textbf{is code}. Thus, it inherits many of the common problems of black box testing:
 
 \begin{itemize}
     \item The set of testable input permutations is very restricted because test cases must be written manually.
     \item Tests are likely to establish a lower bound on program functionality (`it does at least what it is required to
         do'), but not an upper bound.
-    \item Does not maximize code-/branch coverage.
+    \item Does not inherently maximize code-/branch coverage.
 \end{itemize}
+
+While some work investigates automatic generation of test case \textbf{inputs}~\cite{Agha+2005Cute}, Focaccia focuses on
+generating correct \textbf{test truths}.
+
+Combining fuzzing with concolic execution (2021):~\cite{Borzacchiello2021Fuzzolic}.
 
 Focaccia removes the necessity to define correct reference results for test cases by computing them automatically,
 relieving the burden of an additional source of errors in tests, though the necessity of generating the test cases
@@ -27,13 +35,13 @@ themselves persists. It is therefore combinable with many of the existing techni
 approaches for unit testing~\cite{jan2016innovative}~\cite{yu2011robust_planning}:
 
 \begin{itemize}
-    \item Equivalence Partitioning: Define classes of input values that are treated equivalently by the program, i.e.
+    \item Equivalence Partitioning: Define classes of input values that are treated equivalently by the program, i.e.,
         which can be tested exhaustively by running tests on only a single element of the class.
     \item Boundary Value Analysis: Define test cases that cover specifically the boundaries of equivalence classes.
-    \item Orthogonal Array Testing: Further minimize the number of test cases required when equivalence partitioning is
-        in place by constructing a matrix of test input combinations.
+    %\item Orthogonal Array Testing: Further minimize the number of test cases required when equivalence partitioning is
+    %    in place by constructing a matrix of test input combinations.
     \item Fuzzing: Automated technique that generates random inputs to the tested function.
-    \item And more, like graph-based testing, all pair testing, or state transition testing.
+    %\item And more, like graph-based testing, all pair testing, or state transition testing.
 \end{itemize}
 
 \section{Goals}

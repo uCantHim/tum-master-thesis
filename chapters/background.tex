@@ -1,3 +1,43 @@
 \chapter{Background}
 
-What do I write here?
+\section{Symbolic Execution}
+
+Symbolic execution is a program analysis technique originally developed for software testing in the mid '70s based on
+previous advances in the field of formal verification~\cite{Boyer1975Select, King1975Effigy, Howden1977Dissect}. The
+technique's proposition is to execute programs with symbolic values instead of concrete ones, and track their evolution
+throughout the program as well as conditions imposed on the existence of certain values by branches. This way, a program
+execution represents many to all possible values and/or paths at the same time. The results are symbolic equations for
+the contents of variables or memory, which allow theorem solvers to reason about general properties of the code.
+Questions like "Can assertion X ever fail?", "For which values of variable Y is path A taken instead of path B?", or
+"Does statement Z ever dereference a \texttt{nullptr}?" can be answered with formal certainty.
+
+However, the theoretical vision of perfectly formal symbolic execution turned out to be hardly feasible in practice.
+King, in one of the first papers describing symbolic execution as a novel formal verification technique, noted in 1976:
+"Many of the troublesome issues arising in program proving systems also occur in symbolic
+execution"~\cite{King1976SymbExec}. The problems he mentioned include array access based on a symbolic index,
+finite-precision of floating point numbers which inhibits mathematically sound, but practically invalid transformations
+of symbolic equations for the sake of simplification (e.g., floating-point addition is not generally commutative on
+computer hardware), and theoretical limitations in decidability for theorem provers. The situation has not improved
+since then---if anything, \textbf{more} problems have been uncovered, especially as the complexity of programming
+languages to which symbolic execution is to be applied has increased massively.
+
+Despite the current problems in state-of-the-art symbolic execution tools like state/path explosion on real nontrivial
+programs, finding appropriate models for symbolic memory (similar to King's array dereferencing problem), and side
+effects of library and system code, symbolic execution can still be used effectively when applied to reasonably
+restricted scenarios or when enhanced with advanced heuristical approaches~\cite{Baldoni2018SymbexecSurvey}.
+\textit{Concolic execution}~\cite{Sen2007ConcolicTesting}, in which symbolic execution is selectively guided by concrete
+state to avoid combinatory explosions while still achieving reasonably exhaustive results, is one of these more recent
+developments. Focaccia's algorithm is a customized variant of this concept.
+
+% "Symbolic execution is a popular program analysis technique introduced in the mid ’70s to test whether certain
+% properties can be violated by a piece of software [16, 58, 67, 68]"~\cite{Baldoni2018SymbexecSurvey}.
+%
+%     -> https://dl.acm.org/doi/10.1145/390016.808445 (1975) [Boyer+ SELECT: refers to King, proposes a concrete tool]
+%     -> https://ieeexplore.ieee.org/document/1702443 (1977) [Howden DISSECT: cites Boyer+]
+%     -> https://dl.acm.org/doi/10.1145/390016.808444 (1975) [King EFFIGY: language seems to coin the term "symbolic execution"]
+%     -> https://dl.acm.org/doi/10.1145/360248.360252 (1976) [King: cites King, Boyer+, abstract description of SE]
+%
+% First tools were proposed in April 1975 by both Boyer+ and King, seemingly independent of each other. King elaborates on
+% the theoretical properties of symbolic execution in a 1976 follow-up paper that also cites Boyer+.
+
+\section{Binary Translation and Emulation}
