@@ -1,58 +1,130 @@
 \chapter{Overview}
 
+The value of binary translation technologies has been firmly established~\cite{altman2000welcome, sites1993binary,
+probst2002dynamic}. These are large programs that additionally deal in an inherently complex problem domain, causing
+their development to be accordingly difficult. We want to aid this endeavour by \textbf{testing} binary translators,
+particularly emulators and dynamic binary translators---the latter being essentially an optimization of the former.
+
+Testing means to evaluate whether a system meets its originally specified requirements~\cite{jamil2016software_testing}.
+Possible specification requirements for emulators might be performance or feature size, but the specific ubiquitous
+requirement for emulators (and really any software) that we want to test for is \textit{correctness}. As formalized in
+section~\ref{sec:definitions}, the fundamental definition of correctness for binary translators is semantic equivalence
+between input- and output programs, that is, of the translated program and the translation.
+
+% Traditional approach and its problems
+The traditional and most widely used way to test software, called unit testing, requires developers to divide the tested
+entity into atomic, self-contained units/functions (test cases), collect an as exhaustive as possible list of inputs to
+that unit, and compare the unit's output for all inputs to their respective expected outputs. This approach is usable
+and popular, though it carries with it significant shortcomings and difficulties:
+
+\begin{itemize}
+    \item The procedure is not systematic. Ultimately, test quality depends on the developer's abilities and
+        whim---"identifiying which code to test" and the \textit{oracle problem} have been reported as major
+        difficulties in writing unit tests~\cite{Daka+2014UnitTestingSurvey}.
+    \item The isolated nature of unit tests means that units have to be isolated in the first place, which is often not
+        trivial.
+    \item The expected value against which a test case's output is checked is not necessarily reliable as it is subject
+        to human error just as much as the code that is being tested.
+    \item Manual work is time consuming.
+\end{itemize}
+
+% How exactly our task is particularly difficult
+Many of these problems are amplified by the complexity of an emulator's domain, where the test development procedure
+could look like the following: We utilise the local discreteness property of the emulator (see
+section~\ref{sec:definitions}) and write test cases for each instruction for each ISA that the emulator supports. We let
+the emulator simulate an instruction for a number of different operands, which we obtain by thinking about classes of
+equivalent values and choosing an exhaustive list of representatives and corner cases, and check for each
+instruction-operand-combination whether the emulator's state after the instruction has been executed is equal to the
+state that we would expect it to reach, which we have calculated manually based on our understanding of the respective
+instruction's semantics.
+
+The issues at every step of this approach are glaring: Expected test truths can easily be wrong, especially when the
+same developer that implemented the translation also writes the test and thus applies their own faulty understanding of
+how the instruction should operate to it. Further, complex architectures like X86 can have, in addition to a vast number
+of different instructions, a gigantic number of possible instruction-operand combinations for each instruction which is
+unlikely to be exhausted in manually written tests; additionally, corner cases for inputs are hard to identify, the
+process is excessively time consuming, and, more important than is often admitted: developers don't want to go through
+all of this effort---and hence frequently just don't.
+
+% Statement of the fact that we address these problems (at least some of them)
+Many techniques have been developed to improve this process, especially on the part of \textbf{generating} test cases.
+Fuzzing, where tested units are essentially supplied with randomized inputs, is a popular and successful method for
+improving test coverage~\cite{Zhu+2022Fuzzing}. Another technique in this area which also relates to Focaccia, though in
+a different manner, is symbolic execution. It can be employed as a formal method to generate truly exhaustive lists of
+test cases by finding inputs to tested functions that cover all possible solutions for generated path
+constraints~\cite{Li2011SymbexecTestGeneration}.
+
+Focaccia, on the other hand, focuses on tackling the \textit{oracle problem}, that is the concern of generating reliable
+\textit{test truths}. Special attention is paid to \textit{practical utility} in emulator development and to avoid
+lengthy setup/integration work, which is a common problem of advanced automated testing technologies. Focaccia aims to
+be usable with minimal setup work and provide an `out-of-the-box' experience, additionally capitalizing on a natural
+occurence of test cases: native programs.
+
+\section{Focaccia's Approach}
+
+% What does it do?
+Focaccia implements an automatic verifier for emulators. The algorithm detects errors in an emulator's implementation by
+comparing its simulated program state with a \textit{truth state} for which it implements an oracle that calculates
+expected program states that should result from executing instructions correctly. It accomplishes this by employing
+symbolic execution techniques to capture instructions' true semantics.
+
+% How does it do what it does?
+The primary emulator verification algorithm requires as inputs:
+
+\begin{itemize}
+    \item A concrete test trace $((x_1, S_1), …, (x_n, S_n))$. This is a trace of the program $P_X = (x_i)$'s execution
+        via the tested emulator. It comprises program state snapshots $S_i$ (which contain the process's concrete
+        register- and memory contents before $x_i$ is executed) for each emulated instruction $x_i$.
+    \item A symbolic reference trace $(\sigma_1, …, \sigma_n)$. This is the oracle. It is a trace of the same program,
+        but, instead of program snapshots, it defines symbolic equations that encapsulate the corresponding
+        instruction's \textit{correct} behaviour: $\sigma_i(S) = x_i(S)$ for any program state $S$.
+\end{itemize}
+
+For each instruction and program snapshot $(x_i, S_i)$ in the concrete trace, the verifier uses the corresponding
+symbolic equation $\sigma_i$ to predict the next concrete state $S'_{i+1} = \sigma_i(S_i) = x_i(S_i)$, which is the
+expected outcome if instruction $x_i$ acted on $S_i$ correctly. It then tests whether $S'_{i+1} = S_{i+1}$ (where
+$S_{i+1} = E(x_i)(S_i)$, $E$ the tested emulator), meaning it compares whether the emulator's state matches the expected
+state. Another way to think about this is that the verifier calculates a state difference $\Delta_{S_{i+1}} = S'_{i+1}
+- S_{i+1}$. If $\Delta_{S_{i+1}} \neq 0$, then the emulator's state diverges from the truth state, meaning its
+translation of $x_i$ is faulty and a detailed error message is generated that includes the faulty instruction, the
+expected transformation $\sigma_i$, and the changes in values that the emulator has actually (wrongly) calculated.
+
+% How to use it?
+Focaccia is a command-line invocable program, along with a few helper tools. It takes as input a source of a concrete
+trace and a source of a symbolic trace. The former is usually an emulator's log. The latter is usually the traced
+program from which the verifier will generate the symbolic trace. Data from these sources are used to compute the
+comparison described above and finally a summary of the results is printed. We include a tool that can pre-calculate
+symbolic traces for a program and export them to a file that can later be fed to the main program for verification.
+Additionally, a helper script that records program snapshots (i.e., the concrete trace) efficiently from emulators that
+provide a \texttt{gdbserver} interface~\cite{Manpage2024Gdbserver} (QEMU for example) is also included.
+
 \section{Focaccia's Position in the Software Testing Landscape}
 
-We want to tests binary translators, particularly emulators. "Testing is defined as a process of evaluation that either
-the specific system meets its originally specified requirements or not"~\cite{jamil2016software_testing}. As formalized
-in section~\ref{sec:definitions}, the fundamental correctness requirement of binary translators is semantic equivalence
-between input- and output programs, that is, between the translated program and the translation. Violation of this
-requirement is a bug specific to binary translators, and Focaccia aims to implement an automated detection algorithm for
-it.
-
+% Categorization
 In the domain of automated testing, our specific interest can be categorized as \textit{correctness testing}. We can
 further refine the classification by considering that the algorithm effectively compares the program's output to an
 expected oracle-based output, with no knowledge about the tested program's internal structure: it is a \textit{black
 box} approach~\cite{sawant2012software}. It is noteworthy that symbolic/concolic execution is usually used as a
 white-box technique to prove properties of tested code, but Focaccia uses it to establish correctness not of the tested
 program itself, but of the tested program's \textbf{output}, because, in the special case of emulators, the output
-\textbf{is code}. Thus, it inherits many of the common problems of black box testing:
+\textbf{is itself a program}. Thus, it inherits many of the common problems of black box testing:
 
+% Inherent disadvantages
 \begin{itemize}
-    \item The set of testable input permutations is very restricted because test cases must be written manually.
-    \item Tests are likely to establish a lower bound on program functionality (`it does at least what it is required to
-        do'), but not an upper bound.
+    \item The set of testable input permutations is very restricted because test cases are created manually.
+    \item Tests are unlikely to establish exhaustive certainty about the subject's correctness.
     \item Does not inherently maximize code-/branch coverage.
 \end{itemize}
 
-While some work investigates automatic generation of test case \textbf{inputs}~\cite{Agha+2005Cute}, Focaccia focuses on
-generating correct \textbf{test truths}.
+% Inherent advantages
+On the other hand, our approach does not require extensive setup work, thereby facilitating easy integration into the
+development workflow, is applicable to complex real-world test cases (particularly whole programs), and gives detailed
+information at the semantic level of the emulator's problem domain. It is thereby clearly distinguished from the unit
+testing approach because it establishes correctness on the higher level of macroscopic program function.
 
-Combining fuzzing with concolic execution (2021):~\cite{Borzacchiello2021Fuzzolic}.
+% Areas that are entirely untouched by Focaccia
+Although Focaccia covers the oracle problem, the necessity of generating the test cases themselves persists. It is
+therefore combinable with many of the existing techniques, paradigms, and structured approaches to generate test
+cases like equivalence partitioning, fuzzing, et cetera~\cite{jan2016innovative, yu2011robust_planning}.
 
-Focaccia removes the necessity to define correct reference results for test cases by computing them automatically,
-relieving the burden of an additional source of errors in tests, though the necessity of generating the test cases
-themselves persists. It is therefore combinable with many of the existing techniques, paradigms, and structured
-approaches for unit testing~\cite{jan2016innovative}~\cite{yu2011robust_planning}:
-
-\begin{itemize}
-    \item Equivalence Partitioning: Define classes of input values that are treated equivalently by the program, i.e.,
-        which can be tested exhaustively by running tests on only a single element of the class.
-    \item Boundary Value Analysis: Define test cases that cover specifically the boundaries of equivalence classes.
-    %\item Orthogonal Array Testing: Further minimize the number of test cases required when equivalence partitioning is
-    %    in place by constructing a matrix of test input combinations.
-    \item Fuzzing: Automated technique that generates random inputs to the tested function.
-    %\item And more, like graph-based testing, all pair testing, or state transition testing.
-\end{itemize}
-
-\section{Goals}
-
-\section{Challenges}
-
-This is a short summary of the challenges that Focaccia's development had to overcome. Many of these problems may not be
-obvious, or even understandable, from the descriptions given thus far. See chapter~\ref{chapter:design}, particularly
-section~\ref{sec:abstract_algo}, for detailed descriptions of their origin, justification, exploration, and final
-resolution. For now, they have to stand as given.
-
-\subsection{Acquiring Data from Emulators}
-
-\subsection{Program Trace Mismatches}
+%Combining fuzzing with concolic execution (2021):~\cite{Borzacchiello2021Fuzzolic}.
