@@ -73,9 +73,10 @@ require an additional piece of information: We need to know $x_i$.
 
 Not only do we need to know what every $x_i$ is, but we also demand a way of applying it individually to an arbitrary
 program state which we determine, or, more precisely, which is being determined by the translation's execution. One
-approach would be to run a program that sets up the correct machine state, then runs the instruction in question, and
-finally reads the state back. We chose a different path: We use symbolic execution tools to translate instructions into
-equations, which we then manually apply to the states we want to test.
+approach would be to generate and run a small program or piece of code that sets up the correct machine state, then runs
+the instruction in question, and finally reads the resulting state back. We chose a different path: We use symbolic
+execution tools to translate instructions into equations, which we then manually apply to the states we want to test.
+Section~\ref{sec:symb_exec} explains how this works.
 
 \section{Symbolic Execution}\label{sec:symb_exec}
 
@@ -96,7 +97,10 @@ symbol $\alpha$.
     \begin{lstlisting}[language=Python]
         a = ?
         b = a - 5
-        c = a + 10 if (b % 3) == 0 else -3
+        if (b % 3) == 0:
+            c = a + 10
+        else:
+            c = -3
     \end{lstlisting}
     \end{tabular}
     \caption[Symbolic execution example]{Symbolic Execution Sample Code}\label{fig:symbexec_example_listing}
@@ -226,21 +230,27 @@ to obtain), then the symbolic expression generator $E_{X \rightarrow \Sigma}$ is
 
 \section{Tracing the Program}
 
-As noted in the introduction to section~\ref{sec:symb_exec}, recording an entire program as one symbolic equation is
-impossible. Not only do branches cause the equations to blow up exponentially, but any kind of loop will never be able
-to halt at all as the termination condition can never resolve to a concrete \texttt{true} or \texttt{false} answer.
+As noted in the introduction to section~\ref{sec:symb_exec} recording an entire program as one symbolic equation is
+impossible in almost all practical cases. Not only do branches cause the equations to blow up exponentially, but any
+kind of loop will never be able to halt at all as the termination condition can never resolve to a concrete
+\texttt{true} or \texttt{false} answer. This limitation has been pointed out before many times, and the practical
+solution is always to sacrifice accuracy (allow false positives or false negatives or both) for
+performance~\cite{Baldoni2018SymbexecSurvey}.
 
 Focaccia's solution is to run the test program concretely, meaning as a native execution on the physical machine,
 alongside the symbolic expression generator and to follow (or `\textit{trace}') that execution, generating symbolic
 equations for each instruction executed. In this scenario, the concrete execution defines which instructions to
 symbolize and in what order, while the symbolic expression generator computes those instructions' symbolic
-representations. This tactic yields one specific linear \textit{symbolic trace}, which is the translation $E_{X
-\rightarrow \Sigma}(P_X) = P_\Sigma = (\sigma_i)$ of a program into symbolic entities.
+representations. This tactic avoids branching in the symbolic execution entirely, and yields one specific linear
+\textit{symbolic trace}, which is the translation $E_{X \rightarrow \Sigma}(P_X) = P_\Sigma = (\sigma_i)$ of a specific
+run of a program into symbolic entities. This approach can be classified as a type of dynamic symbolic execution in the
+realm of concolic execution.
 
 As already stated, this approach eliminates the most blatant shortcomings of symbolic execution, though, in doing so,
-induces a dependency on a certain amount of concreteness. That concreteness contains remnants of the conceptually
-eliminated initial state difference $\Delta_S$ (section~\ref{sec:comparison}). The way this difference manifests
-itself is by modifying the concrete execution's path through the program, and therefore also that of the symbolic trace.
+induces a dependency on a certain amount of concreteness. Besides sacrificing soundness (not all inputs for which the
+program is faulty are actually found), that concreteness contains remnants of the conceptually eliminated initial state
+difference $\Delta_S$ (see section~\ref{sec:comparison}). The way this difference manifests itself is by modifying the
+concrete execution's path through the program, and therefore also that of the symbolic trace.
 
 \subsection{Trace Mismatches}\label{sec:trace_mismatch}
 
@@ -383,16 +393,93 @@ This shows that branch-based trace mismatches are not a rare phenomenon.
 
 \subsection{Experimental: A Technique for Perfectly Matching Traces}\label{sec:experimental_trace_match}
 
-TODO: Detail the custom-protocol implementation that reads the trace directly from the emulator.
+I want to outline an experimental proposal for a technique which eliminates all trace mismatches. \textbf{If} Focaccia
+had a way of interfacing with a running emulator, it could read current instructions directly from the emulator's
+memory, i.e., take the emulator as a source for the program trace. However, this cannot test whether the emulator
+decodes instructions correctly and fails when arbitrary memory corruptions in the code area may occur; the technique is
+instead useful to verify mature emulators or hand-picked selections of test cases. It can, on the other hand, give the
+best and most user friendly results that Focaccia is able to compute, free of all trace-based limitations.
+Section~\ref{sec:obtaining_snapshots} further elaborates on the facets of this technique.
 
-\textbf{NOTE} Can be eliminated for the special case of online emulator verification. We could implement a minimal
-custom protocol as a replacement for the GDB-server protocol and provide a general online verification algorithm for
-emulators that implement this protocol specifically for verification with Focaccia. This algorithm would give the
-highest-quality results that Focaccia is able to calculate.
+\section{Recording Concrete State}
 
-\section{Recording Emulator State}
+The second major task, now that Focaccia can calculate truth states and compare them to emulator states, is to gather
+snapshots of the tested emulator's concrete state in a representation that is usable for comparison, and do so
+efficiently enough such that this part does not become a bottleneck for the entire verifier, which turned out to be
+surprisingly difficult. We need one program state snapshot for each instruction that is executed.
 
-TODO: Logs, gdb-server, etc.
+\subsubsection{What is Program State?}
+
+The momentary state of a program comprises the process's register- and memory content. The latter specifically being all
+virtual memory pages allocated to the process in question. Everything other than these values, such as disk state,
+network state, or state of peripheral hardware, is considered \textbf{input to}, not \textbf{state of} the program.
+
+\subsubsection{Obtaining Snapshots from Emulators}\label{sec:obtaining_snapshots}
+
+Focaccia needs a way to interface with emulators to read their state. This, of course, depends almost exclusively on
+what sort of logging or debugging interfaces that are implemented by the emulator in question. The first snapshotting
+mechanism that we implemented was a simple log parser specific for Arancini's log format---frankly, just because
+Arancini served as the first emulator on which early prototypes of Focaccia were tested. Its log format, at that time,
+was severely restricted in that Arancini exclusively wrote register values to the log, but no memory content. The latter
+is always a challenge for static, non-interactive communication paths like log files as their size can easily blow out
+of proportion for even moderately sized programs when the emulator dumps \textit{all} memory to disk at every
+instruction. Additionally, almost all memory is never touched by each given instruction (a typical non-vector
+instruction addresses 16 bytes of memory at most) and is thus not strictly required by the verifier.
+
+The fact is that Focaccia will always have to deal with incomplete snapshots and missing information from input data.
+Whether this is because of faults in the emulator, restricted communication interfaces, or incomplete format conversion
+implementations: the reason is outside of our control and one cannot create information, therefore, we always have to
+deal with its abscence. From this insight, we derived a key architectural principle for the verifier: It must not assume
+the presence of any information, fail gracefully if key information is indeed missing, and, most importantly, scale the
+quality of its calculations incrementally with more information.
+
+But back to the matter at hand: Log files are a well decoupled solution that only requires a single parsing function to
+be implemented to support a new emulator. On the other hand, dumping memory to files in a large-scale fashion is very
+costly and the emulator has to \textbf{support} dumping memory to logs in the first place. Our major evaluation target,
+QEMU, does not. Another more memory-efficient approach is an online debugging interface, such as the one QEMU provides
+by implementing the \texttt{gdbserver} protocol. This method is less intrusive to Focaccia (in fact, it demands no
+modification of Focaccia at all to interface with new emulators) but moves some of the effort to the side of the
+emulator, at which the responsibility lies to implement said protocol.
+
+\subsubsection{Minimal snapshots}
+
+A new accomplishment that is made possible when we use real-time interfaces to communicate with an emulator online is
+that we can \textbf{choose} the data we want to read from the emulator. This is enables us to record \textit{minimal
+snapshots} for each instruction that contain exactly the data needed to verify only that instruction. Minimal data to
+verify one instruction actually encompasses information from \textbf{two} program states: The state before that
+instruction is executed and the state after it. The previous state needs to contain input values to the instruction (its
+\textit{operands}), the next state needs to contain the instruction's outputs (its \textit{destinations}). We can
+determine both from an instruction's symbolic equations.
+
+%Currently, the \texttt{gdbserver} protocol is supported, because this is the interface that QEMU offers. The
+%implementation requires only a minimal set of supported functionality: reading register values, reading memory content,
+%and stepping the emulation by single instructions.
+
+To create a minimal snapshot $S'_i$ from a full program state $S_i$ so that it has all data required by the verifier so
+that it can compare it to its respective truth state, but also calculate the next expected truth state from it, the
+following information is required:
+
+% TODO: Maybe call the emulator state S^E_i and the truth state S_i.
+\begin{itemize}
+    \item $\sigma_{i-1}$: The transformation that produces $S_i$. Determines the destination operands of $x_{i-1}$,
+        which are required to compare $S_i$ to the expected truth state.
+    \item $\sigma_i$: The transformation that acts on $S_i$. Determines the source operands of $x_i$, which are used to
+        calculate the next truth state that will be compared to $S_{i+1}$.
+    \item $S_{i-1}$: The previous program state on which producing instruction $x_{i-1}$ acts. We need it to record
+        $S_i$ because symbolic addresses of memory accesses in $x_{i-1}$'s destination operands depend on it. Example:
+        for $x_{i-1} = \texttt{mov [rsp],rax}$, we need to know the value of \texttt{rsp} in $S_{i-1}$ so that we can
+        include memory at that address in $S'_i$.
+    \item $S_i$: The complete current emulator state that is to be reduced to $S'_i$.
+\end{itemize}
+
+Minimal snapshots introduce a new problem: The algorithm can now establish only a \textit{lower bound} on emulator
+correctness, that is, tell whether an instruction does \textbf{at least} what it is supposed to do. With entire-memory
+snapshots, an upper bound, which means that an instruction does \textbf{at most} what it is supposed to do, would have
+been possible to establish because its calculation does not inherently suffer from the $\Delta_S$ problem---the only
+thing that needs to be tested is whether all values that should \textbf{not} have been touched by an instruction have
+remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower bound would imply
+certaintly that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots and all of the
+benefits that go along with them, however, that is impossible.
 
 \section{Optimizations}
 
