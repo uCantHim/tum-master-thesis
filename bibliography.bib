@@ -325,25 +325,34 @@
 }
 
 @article{altman2000welcome,
-  title={Welcome to the opportunities of binary translation},
-  author={Altman, Erik R and Kaeli, David and Sheffer, Yaron},
+  author={Altman, E.R. and Kaeli, D. and Sheffer, Y.},
   journal={Computer},
+  title={Welcome to the opportunities of binary translation},
+  year={2000},
   volume={33},
   number={3},
-  pages={40--45},
-  year={2000},
-  publisher={IEEE}
+  pages={40-45},
+  keywords={Software portability},
+  doi={10.1109/2.825694}
 }
 
 @article{sites1993binary,
-  title={Binary translation},
-  author={Sites, Richard L and Chernoff, Anton and Kirk, Matthew B and Marks, Maurice P and Robinson, Scott G},
-  journal={Communications of the ACM},
-  volume={36},
-  number={2},
-  pages={69--81},
-  year={1993},
-  publisher={ACM New York, NY, USA}
+  author = {Sites, Richard L. and Chernoff, Anton and Kirk, Matthew B. and Marks, Maurice P. and Robinson, Scott G.},
+  title = {Binary translation},
+  year = {1993},
+  issue_date = {Feb. 1993},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {36},
+  number = {2},
+  issn = {0001-0782},
+  url = {https://doi.org/10.1145/151220.151227},
+  doi = {10.1145/151220.151227},
+  journal = {Commun. ACM},
+  month = {feb},
+  pages = {69–81},
+  numpages = {13},
+  keywords = {CISC computers, RISC computers, binary translation, computer architecture, processor architecture translation}
 }
 
 @inproceedings{probst2002dynamic,
@@ -352,4 +361,87 @@
   booktitle={UKUUG Linux Developer’s Conference},
   volume={2002},
   year={2002}
+}
+
+@inproceedings{cifuentes1996staticdynamic,
+  author={Cifuentes and Malhotra},
+  booktitle={1996 Proceedings of International Conference on Software Maintenance},
+  title={Binary translation: static, dynamic, retargetable?},
+  volume={},
+  number={},
+  pages={340-349},
+  doi={10.1109/ICSM.1996.565037}
+}
+
+@inproceedings{Rocha2022Lasagne,
+  author = {Rocha, Rodrigo C. O. and Sprokholt, Dennis and Fink, Martin and Gouicem, Redha and Spink, Tom and Chakraborty, Soham and Bhatotia, Pramod},
+  title = {Lasagne: a static binary translator for weak memory model architectures},
+  year = {2022},
+  isbn = {9781450392655},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3519939.3523719},
+  doi = {10.1145/3519939.3523719},
+  abstract = {The emergence of new architectures create a recurring challenge to ensure that existing programs still work on them. Manually porting legacy code is often impractical. Static binary translation (SBT) is a process where a program’s binary is automatically translated from one architecture to another, while preserving their original semantics. However, these SBT tools have limited support to various advanced architectural features. Importantly, they are currently unable to translate concurrent binaries. The main challenge arises from the mismatches of the memory consistency model specified by the different architectures, especially when porting existing binaries to a weak memory model architecture. In this paper, we propose Lasagne, an end-to-end static binary translator with precise translation rules between x86 and Arm concurrency semantics. First, we propose a concurrency model for Lasagne’s intermediate representation (IR) and formally proved mappings between the IR and the two architectures. The memory ordering is preserved by introducing fences in the translated code. Finally, we propose optimizations focused on raising the level of abstraction of memory address calculations and reducing the number of fences. Our evaluation shows that Lasagne reduces the number of fences by up to about 65\%, with an average reduction of 45.5\%, significantly reducing their runtime overhead.},
+  booktitle = {Proceedings of the 43rd ACM SIGPLAN International Conference on Programming Language Design and Implementation},
+  pages = {888–902},
+  numpages = {15},
+  keywords = {Memory Model, Compiler, Binary Translation},
+  location = {San Diego, CA, USA},
+  series = {PLDI 2022}
+}
+
+@article{Sun+2023DbtBranchPred,
+  AUTHOR = {Sun, Lianshan and Wu, Yanjin and Li, Linxiangyi and Zhang, Changbin and Tang, Jingyan},
+  TITLE = {A Dynamic and Static Binary Translation Method Based on Branch Prediction},
+  JOURNAL = {Electronics},
+  VOLUME = {12},
+  YEAR = {2023},
+  NUMBER = {14},
+  ARTICLE-NUMBER = {3025},
+  URL = {https://www.mdpi.com/2079-9292/12/14/3025},
+  ISSN = {2079-9292},
+  ABSTRACT = {Binary translation is an important technique for achieving cross-architecture software migration. However, mainstream dynamic binary translation frameworks, such as QEMU, often generate a large amount of redundant code, which degrades the efficiency of the target code. To this end, we propose a dynamicâ€“static binary translation method based on branch prediction. It first identifies parts of translation blocks following static branch prediction techniques. Then it translates these translation blocks into less-redundant native code blocks by canonical static translation algorithms. Finally, it executes all code blocks that are translated either statically or dynamically by correctly maintaining and switching their running contexts. In order to correctly weave the two types of translation activities, the proposed method only translates the next translation block that is data-independent from the current one by the active variable analysis algorithm, and records and shares the intermediate states of the dynamic and static translation activities via a carefully designed data structure. In particular, a shadow register-based context recovery mechanism is proposed to correctly record the running context of static translation blocks, and to correctly recover the context for dynamically translating and running blocks that were not statically translated. We also designed an adaptive memory optimization mechanism to dynamically release the memory of the mispredicted translation blocks. We implemented a dynamicâ€“static binary translation framework by extending QEMU, called BP-QEMU (QEMU with branch prediction). We evaluated the translation correctness of BP-QEMU using the testing programs for the ARM and PPC instruction sets from QEMU, and evaluated the performance of BP-QEMU using the CoreMark benchmark code. The experimental results show that BP-QEMU can translate the instructions from the ARM and PPC architectures correctly; moreover, the average execution efficiency of the CoreMark code on BP-QEMU improves by 13.3\% compared to that of QEMU.},
+  DOI = {10.3390/electronics12143025}
+}
+
+@inproceedings{Hawkins2015OptimizingDbt,
+  author={Hawkins, Byron and Demsky, Brian and Bruening, Derek and Zhao, Qin},
+  booktitle={2015 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)},
+  title={Optimizing binary translation of dynamically generated code},
+  year={2015},
+  volume={},
+  number={},
+  pages={68-78},
+  keywords={Optimization;Engines;Instruments;Benchmark testing;Security;Complexity theory;Data structures},
+  doi={10.1109/CGO.2015.7054188}
+}
+
+@inproceedings{Kedia+2013DbtKernel,
+  author = {Kedia, Piyus and Bansal, Sorav},
+  title = {Fast dynamic binary translation for the kernel},
+  year = {2013},
+  isbn = {9781450323888},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/2517349.2522718},
+  doi = {10.1145/2517349.2522718},
+  abstract = {Dynamic binary translation (DBT) is a powerful technique with several important applications. System-level binary translators have been used for implementing a Virtual Machine Monitor [2] and for instrumentation in the OS kernel [10]. In current designs, the performance overhead of binary translation on kernel-intensive workloads is high. e.g., over 10x slowdowns were reported on the syscall nanobenchmark in [2], 2-5x slowdowns were reported on lmbench microbenchmarks in [10]. These overheads are primarily due to the extra work required to correctly handle kernel mechanisms like interrupts, exceptions, and physical CPU concurrency.We present a kernel-level binary translation mechanism which exhibits near-native performance even on applications with large kernel activity. Our translator relaxes transparency requirements and aggressively takes advantage of kernel invariants to eliminate sources of slowdown. We have implemented our translator as a loadable module in unmodified Linux, and present performance and scalability experiments on multiprocessor hardware. Although our implementation is Linux specific, our mechanisms are quite general; we only take advantage of typical kernel design patterns, not Linux-specific features. For example, our translator performs 3x faster than previous kernel-level DBT implementations while running the Apache web server.},
+  booktitle = {Proceedings of the Twenty-Fourth ACM Symposium on Operating Systems Principles},
+  pages = {101–115},
+  numpages = {15},
+  location = {Farminton, Pennsylvania},
+  series = {SOSP '13}
+}
+
+@inproceedings{Guan+2010DbtOptimizations,
+  author={Guan, Haibing and Yang, Hongbo and Qi, Zhengwei and Yang, Yindong and Liu, Bo},
+  booktitle={2010 Proceedings of the 5th International Conference on Ubiquitous Information Technologies and Applications},
+  title={The Optimizations in Dynamic Binary Translation},
+  year={2010},
+  volume={},
+  number={},
+  pages={1-6},
+  keywords={Optimization;Registers;Resource management;Joining processes;Runtime;Binary codes;Instruction sets},
+  doi={10.1109/ICUT.2010.5677870}
 }

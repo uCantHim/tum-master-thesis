@@ -41,3 +41,27 @@ these more recent developments. Focaccia's algorithm is a customized variant of 
 % the theoretical properties of symbolic execution in a 1976 follow-up paper that also cites Boyer+.
 
 \section{Binary Translation and Emulation}
+
+The idea of binary translation arises when one considers the reality of multiple conflicting instruction set
+architectures in the world and the desire or even necessity to execute programs on all of them. The natural way to
+accomplish this is to compile a program for each of the targeted architectures, resulting in \textit{native} executables
+for each, which also makes this approach generate the most efficient form of program execution as it incurs no runtime
+overhead at all. This works for entirely self-contained programs, but programs tend to depend upon third-party software
+of which the source code might not be available at all or may perform architecture-specific work so that it is not
+trivially adaptable to different architectures. Additionally, recompilation and the distribution of multiple binaries
+associated with it is inconvienent and also costly for very large projects.
+
+Other approaches, which trade off different parts of the aforementioned pros and cons, can be assigned to the rough
+categories of microcoded emulators, software interpreters, and binary translators~\cite{sites1993binary}. The first one
+is concerned with supporting multiple \ac{ISA}s \textbf{in hardware} by translating their instructions to a common
+microcode language; this issue shall not trouble us here. The latter two are software solutions, also known as dynamic
+binary translation and static binary translation, respectively~\cite{cifuentes1996staticdynamic, Rocha2022Lasagne}.
+Static binary translation takes as input binary code of one \ac{ISA} and compiles it to a different \ac{ISA} in an
+offline process ahead of time. It may include a runtime component that maps operating system calls to the target
+platform. Static translation cannot deal self-modifying code, but incurs little runtime overhead. Dynamic binary
+translation, on the other hand, acts in the spirit of an interpreter by translating a binary on the fly during its
+execution. It handles dynamic branching without problems, but its runtime overhead is higher because of the continually
+running interpreter, and optimization options for generated code are severely limited by its narrow, local view of the
+executed code, even though many optimization techniques have been developed over the
+years~\cite{Guan+2010DbtOptimizations, Sun+2023DbtBranchPred, Hawkins2015OptimizingDbt, Kedia+2013DbtKernel}. Programs
+that perform dynamic binary translation are frequently called \textit{emulators}.
