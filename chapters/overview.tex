@@ -95,8 +95,9 @@ trace and a source of a symbolic trace. The former is usually an emulator's log.
 program from which the verifier will generate the symbolic trace. Data from these sources are used to compute the
 comparison described above and finally a summary of the results is printed. We include a tool that can pre-calculate
 symbolic traces for a program and export them to a file that can later be fed to the main program for verification.
-Additionally, a helper script that records program snapshots (i.e., the concrete trace) efficiently from emulators that
-provide a \texttt{gdbserver} interface~\cite{Manpage2024Gdbserver} (QEMU for example) is also included.
+Additionally, a helper script that records concrete traces in the form of efficient minimal program snapshots (see
+section~\ref{sec:minimal_snapshots}) from emulators that provide a \texttt{gdbserver}
+interface~\cite{Sourceware2024GdbRemoteProtocol} (QEMU for example) is also included.
 
 \section{Focaccia's Position in the Software Testing Landscape}
 

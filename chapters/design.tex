@@ -441,7 +441,7 @@ by implementing the \texttt{gdbserver} protocol. This method is less intrusive t
 modification of Focaccia at all to interface with new emulators) but moves some of the effort to the side of the
 emulator, at which the responsibility lies to implement said protocol.
 
-\subsubsection{Minimal snapshots}
+\subsubsection{Minimal snapshots}\label{sec:minimal_snapshots}
 
 A new accomplishment that is made possible when we use real-time interfaces to communicate with an emulator online is
 that we can \textbf{choose} the data we want to read from the emulator. This is enables us to record \textit{minimal
@@ -480,11 +480,6 @@ thing that needs to be tested is whether all values that should \textbf{not} hav
 remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower bound would imply
 certaintly that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots and all of the
 benefits that go along with them, however, that is impossible.
-
-\section{Optimizations}
-
-TODO: Explain the nontrivial speedups on the naive algorithm that I achieved, particularly the minimal snapshot
-technology.
 
 
 
