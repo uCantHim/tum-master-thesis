@@ -114,12 +114,11 @@ either by proving properties of the resulting equations (e.g.\ when is \texttt{c
 from the equation. We use symbolic execution tools for machine code to translate instructions into manipulable
 functions/equations which we can then apply to program states via an interpreter. It turns out, that, if one executes an
 instruction via a symbolic execution engine on an input state which is not only partly but entirely symbolic, the
-resulting equation is a full representation of the transformation which is applied to a program state by that
-instruction. This is an uncommonly seen use of symbolic execution as inputs to a program are usually symbolized
-selectively, otherwise the branching complexity of full programs quickly leads to an exponential inflation of the
-equations' size as well as the number of explored paths. This is not a problem if we only trace a single instruction at
-any time: no symbolic branching conditions are ever propagated through multiple instructions. Overall, only one path
-through the program is considered and the effort thus remains linear.
+resulting equation is a full representation of that instruction's semantics. This is an uncommonly seen use of symbolic
+execution as inputs to a program are usually symbolized selectively, otherwise the branching complexity of full programs
+quickly leads to an exponential inflation of the equations' size as well as the number of explored paths. This is not a
+problem if we only trace a single instruction at any time: no symbolic branching conditions are ever propagated through
+multiple instructions. Overall, only one path through the program is considered and the effort thus remains linear.
 
 Formally, we denote this use of symbolic execution as a map $G$ from an instruction $x \in X$ to a symbolic entity
 $\sigma$ which is composed from a symbolic alphabet $\Sigma$ and is itself a function of program states: $G_{X
@@ -441,45 +440,121 @@ by implementing the \texttt{gdbserver} protocol. This method is less intrusive t
 modification of Focaccia at all to interface with new emulators) but moves some of the effort to the side of the
 emulator, at which the responsibility lies to implement said protocol.
 
+\subsubsection{Recording QEMU State}
+
+QEMU has extensive options for logging output, but it cannot write memory to the log. Additionally, even though logging
+can output memory mapping informations, QEMU's \texttt{gdbserver}-based remote debugging interface can not, so that
+there is no obvious way to know which memory addresses exactly to include in the snapshot. The result was a rather
+inventive first iteration of a customized snapshotting system for QEMU, for which
+\figurename~\ref{fig:qemu_naive_recording} gives a high-level visualization.
+
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/qemu_naive_recording.png}
+    \caption{Recording QEMU Snapshots}\label{fig:qemu_naive_recording}
+\end{figure}
+
+The snapshot recorder is an algorithm that does multiple things. First, it starts an instance of QEMU, passing to it
+several options that enable logging and the \texttt{gdbserver} stub, which makes QEMU wait before the first instruction
+until a connected GDB instance instructs it to start execution. The script then connects to the GDB stub, which it uses
+from there on to read register- and memory values from QEMU, and also to step its execution forward by increments of
+single instructions. To know what bytes of memory to record, it simultaneously reads from QEMU's log file, to where QEMU
+outputs its memory mappings every time they change (e.g., when a new page is allocated). The recorder thus keeps track
+of the memory pages allocated to the emulated process and records at each instruction all content of all allocated
+pages, in addition to all register contents, in a snapshot.
+
+Unfortunately, this approach turned out not only to be highly memory inefficient seeing as almost all memory of a
+process is irrelevant for each given single instruction, but also exceedingly slow---so much so that the system was
+virtually unusable: For a minimal `Hello World`-program, which, compiled with \texttt{musl libc}, results in a trace of
+1106 instructions on our test system and compiler version, the memory footprint of an average snapshot is around 2.2
+megabytes and the average time taken to read that amount of data over QEMU's GDB stub is around $185$ milliseconds,
+resulting in a total 2.46 gigabytes of snapshot data recorded over 304 seconds, or five minutes, of execution time.
+
+These results are unacceptable to any productive development setting, not to mention that the solution is entirely
+specific to QEMU and cannot be transferred to other emulators easily. The evolution of this system is our
+\textit{minimal snapshotting} approach. It reduces the amount of data stored in each snapshot to the theoretical minimum
+that is required for the verifier to compute its results, while simultaneously removing the reliance on a specific log
+structure by moving to a purely \texttt{gdbserver}-protocol-based interface. Even this interface is highly exchangeable
+with any remote communication protocol as long as it supports three basic commands: Reading memory content at arbitrary
+addresses, reading register content, and stepping the program forward by single instructions. The following section
+explains all of this in detail.
+
 \subsubsection{Minimal snapshots}\label{sec:minimal_snapshots}
 
-A new accomplishment that is made possible when we use real-time interfaces to communicate with an emulator online is
-that we can \textbf{choose} the data we want to read from the emulator. This is enables us to record \textit{minimal
-snapshots} for each instruction that contain exactly the data needed to verify only that instruction. Minimal data to
-verify one instruction actually encompasses information from \textbf{two} program states: The state before that
-instruction is executed and the state after it. The previous state needs to contain input values to the instruction (its
-\textit{operands}), the next state needs to contain the instruction's outputs (its \textit{destinations}). We can
-determine both from an instruction's symbolic equations.
+A key capability that interactive remote debugging interfaces to running emulators enable for the snapshotting engine is
+that it can \textbf{choose} which parts of the emulator's state it wants to record (in contrast, for example, to static
+log files where the emulator chooses which data to dump). By considering as additional information the symbolic
+representation of an instruction's semantics, it can calculate the exact subset of a program's state that is needed to
+verify only that instruction, and record it in a \textit{minimal snapshot}.
 
-%Currently, the \texttt{gdbserver} protocol is supported, because this is the interface that QEMU offers. The
-%implementation requires only a minimal set of supported functionality: reading register values, reading memory content,
-%and stepping the emulation by single instructions.
+Minimal data to verify the correctness of one instruction encompasses information from \textbf{two} program states: The
+input state to the instruction, i.e., the state on which the instruction acts, and its output state, i.e., the state
+that the instruction produces; the former to compute the expected reference destination state, the latter to compare it
+to the reference state. Relevant data of the input state are input values to the instruction (its \textit{source
+operands}), while that of the output state encompasses the instruction's output values (its \textit{destination
+operands}). We can determine both from an instruction's symbolic equations.
 
-To create a minimal snapshot $S'_i$ from a full program state $S_i$ so that it has all data required by the verifier so
-that it can compare it to its respective truth state, but also calculate the next expected truth state from it, the
-following information is required:
+\tikzstyle{state_node} = [rectangle, draw=black, text centered, minimum width=2cm, minimum height=1cm]
+\tikzstyle{arrow} = [thick, ->, >=stealth]
 
-% TODO: Maybe call the emulator state S^E_i and the truth state S_i.
+%\begin{wrapfigure}{R}{0.3\textwidth}
+\begin{figure}[htpb]
+\begin{center}
+\begin{tikzpicture}[scale=1, transform shape, node distance=2cm]
+    \node (prev) [state_node] {$S_{i-1}$};
+    \node (cur)  [state_node, below of=prev] {$S_{i}$};
+    \node (next) [state_node, below of=cur] {$S_{i+1}$};
+
+    \draw [arrow] (prev) -- node[anchor=west] {$\sigma_{i-1}$} (cur);
+    \draw [arrow] (cur)  -- node[anchor=west] {$\sigma_{i}$} (next);
+\end{tikzpicture}
+\end{center}
+\caption{Instruction data flow}%
+\label{fig:instr_data_flow}
+\end{figure}
+%\end{wrapfigure}
+
+To create a minimal snapshot $s_i$ from a full program state $S^E_i$ so that it has all data required by the verifier to
+calculate the comparison to its respective truth state $\Delta_{S_i} = S_i - S^E_i$ and also calculate the next expected
+truth state $S_{i+1} = \sigma_i(S^E_i) = \sigma_i(s_i)$ from it, the following information is required:
+
 \begin{itemize}
-    \item $\sigma_{i-1}$: The transformation that produces $S_i$. Determines the destination operands of $x_{i-1}$,
-        which are required to compare $S_i$ to the expected truth state.
-    \item $\sigma_i$: The transformation that acts on $S_i$. Determines the source operands of $x_i$, which are used to
-        calculate the next truth state that will be compared to $S_{i+1}$.
-    \item $S_{i-1}$: The previous program state on which producing instruction $x_{i-1}$ acts. We need it to record
-        $S_i$ because symbolic addresses of memory accesses in $x_{i-1}$'s destination operands depend on it. Example:
-        for $x_{i-1} = \texttt{mov [rsp],rax}$, we need to know the value of \texttt{rsp} in $S_{i-1}$ so that we can
-        include memory at that address in $S'_i$.
-    \item $S_i$: The complete current emulator state that is to be reduced to $S'_i$.
+    \item $\sigma_{i-1}$: A representation of the transformation that produces $S_i$. Determines the destination
+        operands of $x_{i-1}$, the values of which are required to compare $S^E_i$ to the expected truth state.
+    \item $\sigma_i$: A representation of the transformation that acts on $S^E_i$. Determines the source operands of
+        $x_i$, the values of which are used to calculate the next truth state $S_{i+1}$ that will be compared to
+        $S^E_{i+1}$.
+    \item $S^E_{i-1}$: The previous program state on which producing instruction $x_{i-1}$ acts. We need it to record
+        $s_i$ because symbolic addresses of memory accesses in $x_{i-1}$'s destination operands, which must be included
+        in $s_i$, depend on it. Example: for $x_{i-1} = \texttt{mov [rsp],rax}$, we need to know the value of
+        \texttt{rsp} in $S^E_{i-1}$ so that we can include memory at that address in $s_i$.
+    \item $S^E_i$: The current emulator state that is to be reduced to $s_i$.
 \end{itemize}
 
-Minimal snapshots introduce a new problem: The algorithm can now establish only a \textit{lower bound} on emulator
+\paragraph{Example} The instruction $x = \texttt{ADD [RDI+0x20], RAX}$ calculates \texttt{RAX + 64@[RDI+0x20]} and
+stores the result in \texttt{[RDI+0x20]}, also modifying some state flags in the process. We shall call the emulated
+program state before the instruction is executed $S^E_0$ and the emulated state after the instruction $S^E_1 =
+E(x)(S^E_0)$.
+
+The snapshot of the state $S^E_0$ must contain at least the register \texttt{RAX} and 8 bytes of memory
+\texttt{64@[RDI+0x20]} so that the expected state $S_1 = x(S^E_0)$ can be calculated. The snapshot of the emulator state
+$S^E_1$ must contain the output values \texttt{64@[RDI+0x20]} and \texttt{RFLAGS} so that the comparison $S_1 = S^E_1$
+can be performed. Additionally, because the memory address to which the instruction writes is based on \texttt{RDI}'s
+value in $S_0$, not in $S_1$, the snapshot of $S_0$ must also store \texttt{RDI} so that the following state can
+calculate the address \texttt{[RDI + 0x20]}. In the context of a continuous trace, the second snapshot must also contain
+all inputs to the next instruction, and so forth.
+\\
+
+% Problems with this approach
+Minimal snapshots introduce a new restriction: The algorithm can now establish only a \textit{lower bound} on emulator
 correctness, that is, tell whether an instruction does \textbf{at least} what it is supposed to do. With entire-memory
 snapshots, an upper bound, which means that an instruction does \textbf{at most} what it is supposed to do, would have
 been possible to establish because its calculation does not inherently suffer from the $\Delta_S$ problem---the only
 thing that needs to be tested is whether all values that should \textbf{not} have been touched by an instruction have
 remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower bound would imply
-certaintly that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots and all of the
-benefits that go along with them, however, that is impossible.
+certainty that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots and all of the
+benefits that go along with them, however, that becomes impossible since the data required for the calculation is not
+present.
 
 
 
