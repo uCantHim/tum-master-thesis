@@ -326,8 +326,8 @@ user space when a program is executed"~\cite{getauxval2024Mar}. Libc's initializ
 musl libc~\cite{MuslLibc2024Feb}) iterates over that array to bring it into a representation that is indexable by entry
 names, thereby depending its branching behaviour on the array's size. It turns out that QEMU, at least on some systems,
 passes an auxiliary vector to the application that is different from the native auxiliary vector on the same system;
-\figurename~\ref{fig:auxv_comparison} shows an example. While a custom method for launching both the tested emulator and
-the symbolic trace recorder could in theory ensure equal environment arrays, the same is not possible for the
+\figurename~\ref{fig:auxv_comparison} shows an example. While a customized launcher that starts both the tested emulator
+and the symbolic trace recorder could in theory ensure equal environment arrays, the same is not possible for the
 kernel-provided auxiliary vector.
 
 This shows that branch-based trace mismatches are not a rare phenomenon.
@@ -392,13 +392,12 @@ This shows that branch-based trace mismatches are not a rare phenomenon.
 
 \subsection{Experimental: A Technique for Perfectly Matching Traces}\label{sec:experimental_trace_match}
 
-I want to outline an experimental proposal for a technique which eliminates all trace mismatches. \textbf{If} Focaccia
-had a way of interfacing with a running emulator, it could read current instructions directly from the emulator's
-memory, i.e., take the emulator as a source for the program trace. However, this cannot test whether the emulator
-decodes instructions correctly and fails when arbitrary memory corruptions in the code area may occur; the technique is
-instead useful to verify mature emulators or hand-picked selections of test cases. It can, on the other hand, give the
-best and most user friendly results that Focaccia is able to compute, free of all trace-based limitations.
-Section~\ref{sec:obtaining_snapshots} further elaborates on the facets of this technique.
+I want to outline an experimental proposal for a technique to eliminate all trace mismatches. \textbf{If} Focaccia had a
+way of interfacing with a running emulator, it could read current instructions directly from the emulator's memory,
+i.e., take the emulator as a source for the program trace. However, this cannot test whether the emulator decodes
+instructions correctly and fails when arbitrary memory corruptions in the code area may occur; the technique is instead
+useful to verify mature emulators or hand-picked selections of test cases. It can, on the other hand, give the best and
+most user friendly results that Focaccia is able to compute, free of all trace-based limitations.
 
 \section{Recording Concrete State}
 
