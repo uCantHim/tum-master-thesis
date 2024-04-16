@@ -1,10 +1,15 @@
 \chapter{Implementation}\label{chapter:implementation}
 
+Focaccia is a Python application under a strong `library-style code that is being tied together only by the user-facing
+script' paradigm. Its object structure does not follow a strict Java-like class-oriented programming style, but instead
+fits loose components (mostly free functions that act on well-defined data types) onto the underlying conceptual data
+pipeline.
+
 \section{Tools}
 
-\subsection{Symbolic Execution}
+\subsection{Symbolic Execution Backend}
 
-A tool, in order to be useful for our specific purpose, must satisfy multiple conditions:
+A symbolic execution backend, in order to be useful for our specific purpose, must satisfy multiple conditions:
 
 \begin{itemize}
     \item Symbolic execution for assembly languages (many tools operate on high-level languages); primarily x86, but
@@ -30,6 +35,43 @@ statement hints towards exactly the functionality that Focaccia requires.
 
 As a proposal for future improvement of Focaccia, it is entirely possible to build a custom abstraction layer over the
 symbolic execution backend as a means to have multiple interchangeable backends for feature- and implementation
-completeness of all desired architectures, against which we decided to do.
+completeness of all desired architectures. We discarded this idea initially for its likelihood to incur unnecessary
+effort, though the evaluation has shown that the backend's completeness really is a major pain point of Focaccia.
+
+\subsection{Concrete Execution Tracer}
+
+We need to follow a program's native execution on a per-instruction basis and inspect the program's state at each trace
+point (see section~\ref{sec:concolic_tracing}). A debugger is a canonical choice for this task; we use LLDB because it
+has a Python API (one can start and manipulate debugger instances conveniently in Python code)~\cite{lldb2024Apr}.
+\lstlistingname~\ref{fig:lldb_tracing} shows a minimal example of how LLDB can be used to trace a native execution.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=Python]
+        import lldb
+        debugger = lldb.SBDebugger.Create()
+        debugger.SetAsync(False)
+        target = debugger.CreateTargetWithFileAndArch("/bin/ls",
+                                                      lldb.LLDB_ARCH_DEFAULT)
+        error = lldb.SBError()
+        process = target.Launch(debugger.GetListener(),
+                                argv, envp, None, None, None,
+                                None, 0, True,
+                                error)
+
+        while self.process.GetState() != lldb.eStateExited:
+            thread = process.GetThreadAtIndex(0)
+            frame = thread.GetFrameAtIndex(0)
+
+            pc = frame.FindRegister("PC").GetValueAsUnsigned()
+            instr = disassemble(process.ReadMemory(pc, 16, error))
+            thread.StepInstruction()
+    \end{lstlisting}
+    \end{tabular}
+    \caption{Tracing a concrete execution with LLDB}\label{fig:lldb_tracing}
+\end{figure}
+
+\section{Algorithms}\label{sec:algorithms}
 
 \subsection{Generating Symbolic Expressions}\label{sec:symb_expr_impl}
