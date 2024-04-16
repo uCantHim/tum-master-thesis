@@ -75,3 +75,100 @@ has a Python API (one can start and manipulate debugger instances conveniently i
 \section{Algorithms}\label{sec:algorithms}
 
 \subsection{Generating Symbolic Expressions}\label{sec:symb_expr_impl}
+
+The goal for transforming instructions to symbolic expressions is to generate equations that are, despite being guided
+to a certain extent by the native execution's concrete reference state, as symbolic as possible. Ideally, the concrete
+state's only purpose would be to indicate for which instructions symbolic expressions are to be generated, which is
+indeed possible for the most part. For example, an \texttt{ADD} instruction always performs the same conceptual
+operation for each configuration of operand types (memory, register, or immediate), no matter the concrete values of the
+program state on which it is executed. Conditional instructions like \texttt{CMOVcc}, on the other hand, modify their
+behaviour based on the condition operand's concrete value. The first iteration of the implementation inspected the
+concrete state to resolve to which location the instruction writes: \texttt{CMOVNZ RDX, RAX} would generate the equation
+\texttt{RDX = RAX} if \texttt{ZF = 0} in the concrete reference state, and \texttt{RDX = RDX}
+otherwise~\cite{Intel2023DeveloperManualVol1}.  However, the formula can be improved to be less reliant on concrete
+state, thereby increasing the number of test cases it can verify correctly, if our symbolic language has support for
+conditional expressions. This is the case with Miasm.  An improved version of the algorithm generates for the same
+instruction the equation \texttt{RBX = (ZF == 0) ? RAX : RBX}. No concrete state is considered at all---the equation is
+perfectly symbolic and captures all possible scenarios.
+
+The perfectly abstract approach does not work for all instructions: Repeated string instructions like \texttt{REP STOS},
+where the number of loop iterations depends on the initial state, can not be captured in a finite formula because they
+do not necessarily terminate for all inputs---at least not in a realistic amount of time and with realistic space
+consumption: an equation for a possible loop count of $2^{64} - 1$ on 64-bit architectures is theoretically but not
+practically representable or even computable. For these instructions, the concrete reference execution is used as a
+termination condition: the generated equation will always have a number of iterations matching the expected number for
+its specific initial state. This is a severe limitation on its verification power, though not circumventable.
+\lstlistingname~\ref{fig:symb_equation_loop} shows an example.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \texttt{REP STOS es:[RDI] EAX} \\
+    \midrule
+    \begin{lstlisting}
+        RDI        = RDI + 0x130
+        RCX        = RCX + 0xFFFFFFFFFFFFFFB4
+        @32[RDI]   = RCX ? (RAX[0:32], @32[RDI])
+        @32[RDI + 0x4]  = (RCX == 0x1) ? (@32[RDI + 0x4],  RAX[0:32])
+        @32[RDI + 0x8]  = (RCX == 0x2) ? (@32[RDI + 0x8],  RAX[0:32])
+        @32[RDI + 0xC]  = (RCX == 0x3) ? (@32[RDI + 0xC],  RAX[0:32])
+        @32[RDI + 0x10] = (RCX == 0x4) ? (@32[RDI + 0x10], RAX[0:32])
+        ...
+    \end{lstlisting}
+    \end{tabular}
+    \caption[]{Symbolic equations for \texttt{REP} instruction}\label{fig:symb_equation_loop}
+\end{figure}
+
+The Miasm backend lifts parsed instructions to an \ac{IR} on which the symbolic execution engine operates. For
+semantically complex instructions like the latter two described above, it generates multiple \ac{IR} blocks that are
+chained together, forming an \ac{IR} control flow graph; Figures~\ref{fig:ir_graph_cmov} and~\ref{fig:ir_graph_repstod}
+show examples of these IR graphs for instructions \texttt{CMOVNZ RDX, RAX} and \texttt{REP STOS es:[RDI], EAX},
+respectively.
+
+For our purposes, we want to collapse the entire graph into a unified collection of assignment statements, such that
+\figurename~\ref{fig:ir_graph_repstod} produces the symbolic equations shown in
+\figurename~\ref{fig:symb_equation_loop}. We accomplish this with a small symbolic interpreter that traverses the graph
+(i.e., executes the graph purely symbolically) and collects the visited nodes' modifications to the program state. If a
+branch is encountered, instead of deciding on a path to take, both destinations are considered and combined into a
+single conditional assignment, thus avoiding the need to consider concrete state to decide the branch. As noted before,
+this works because a single instruction's internal branching behaviour is usually simple enough not to induce explosive
+path growth.  \figurename~\ref{fig:symb_branch_to_assign} shows this transformation for the \texttt{CMOVNZ RDX, RAX}
+example. The left side shows the IR graph represented as conditional pseudocode, the right side shows the resulting
+conditional assignment.
+
+\begin{figure}[htpb]
+    \begin{subfigure}[b]{0.3\linewidth}
+        \begin{lstlisting}
+            if not ZF:
+                RDX = RAX
+            else:
+                RDX = RDX
+        \end{lstlisting}
+        \caption{Symbolic Branch}\label{fig:symb_conditional_1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.5\linewidth}
+        \begin{lstlisting}
+            RDX = ZF ? RDX : RAX
+        \end{lstlisting}
+        \caption{Combined Conditional Assignment}\label{fig:symb_conditional_2}
+    \end{subfigure}
+    \caption{Transforming Branching to Conditional Assignments}
+    \label{fig:symb_branch_to_assign}
+\end{figure}
+
+To handle the complex case of loops, the destination of branches that are encountered repeatedly is concretizised to a
+single IR block by taking into account the concrete guidance state. This is the only case where concrete state is
+considered during symbolic expression generation.
+
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/ir_graph_cmov.png}
+    \caption{IR graph for \texttt{CMOVNZ RDX, RAX}}\label{fig:ir_graph_cmov}
+\end{figure}
+
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=0.7\linewidth]{figures/ir_graph_repstod.png}
+    \caption{IR graph for \texttt{REP STOSD}}\label{fig:ir_graph_repstod}
+\end{figure}
