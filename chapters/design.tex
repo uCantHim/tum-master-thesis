@@ -227,7 +227,7 @@ to obtain), then the symbolic expression generator $E_{X \rightarrow \Sigma}$ is
     \caption{Verification of the Symbolic Expression Generator}\label{fig:symb_generator_verification}
 \end{figure}
 
-\section{Tracing the Program}
+\section{Tracing the Program}\label{sec:concolic_tracing}
 
 As noted in the introduction to section~\ref{sec:symb_exec} recording an entire program as one symbolic equation is
 impossible in almost all practical cases. Not only do branches cause the equations to blow up exponentially, but any
@@ -467,7 +467,7 @@ process is irrelevant for each given single instruction, but also exceedingly sl
 virtually unusable: For a minimal `Hello World`-program, which, compiled with \texttt{musl libc}, results in a trace of
 1106 instructions on our test system and compiler version, the memory footprint of an average snapshot is around 2.2
 megabytes and the average time taken to read that amount of data over QEMU's GDB stub is around $185$ milliseconds,
-resulting in a total 2.46 gigabytes of snapshot data recorded over 304 seconds, or five minutes, of execution time.
+resulting in a total 15.88 gigabytes of snapshot data recorded over 321 seconds, or 5.35 minutes, of execution time.
 
 These results are unacceptable to any productive development setting, not to mention that the solution is entirely
 specific to QEMU and cannot be transferred to other emulators easily. The evolution of this system is our
@@ -544,16 +544,21 @@ calculate the address \texttt{[RDI + 0x20]}. In the context of a continuous trac
 all inputs to the next instruction, and so forth.
 \\
 
+When we apply this technique to record snapshots from QEMU in the same testing environment as used in the measurings
+above, the algorithm generates a total of 121 kilobytes of snapshot data (a large part of which is overhead from the
+admittedly far from optimized JSON format we use to serialize snapshots) recorded over a total of 6.9 seconds. This is a
+reduction in space consumption of 13,123,900\% and a 4,650\% reduction in execution time.
+
 % Problems with this approach
-Minimal snapshots introduce a new restriction: The algorithm can now establish only a \textit{lower bound} on emulator
-correctness, that is, tell whether an instruction does \textbf{at least} what it is supposed to do. With entire-memory
-snapshots, an upper bound, which means that an instruction does \textbf{at most} what it is supposed to do, would have
-been possible to establish because its calculation does not inherently suffer from the $\Delta_S$ problem---the only
-thing that needs to be tested is whether all values that should \textbf{not} have been touched by an instruction have
-remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower bound would imply
-certainty that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots and all of the
-benefits that go along with them, however, that becomes impossible since the data required for the calculation is not
-present.
+However, minimal snapshots, as always, introduce a new restriction: The algorithm can now establish only a \textit{lower
+bound} on emulator correctness, that is, tell whether an instruction does \textbf{at least} what it is supposed to do.
+With entire-memory snapshots, an upper bound, which means that an instruction does \textbf{at most} what it is supposed
+to do, would have been possible to establish because its calculation does not inherently suffer from the $\Delta_S$
+problem---the only thing that needs to be tested is whether all values that should \textbf{not} have been touched by an
+instruction have remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower
+bound would imply certainty that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots
+and all of the benefits that go along with them, however, that becomes impossible since the data required for the
+calculation is not present.
 
 
 
