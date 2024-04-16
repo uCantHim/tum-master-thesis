@@ -1,0 +1,7 @@
+\chapter{Future Work}
+
+One could look into a replacement strategy for symbolic execution, as that is currently Focaccia's strongest weakness.
+Section~\ref{sec:comparison} hinted towards a possible alternative: generate a small program that sets up processor and
+memory state, runs an instruction on it, and then reads back the result: Use the ISA's hardware implementation as the
+oracle. The hardware, after all, is much more likely to have high correctness than a software emulator. One could even
+re-use the reproducer's mechanism, which does pretty much exactly that.
