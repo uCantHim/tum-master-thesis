@@ -72,34 +72,32 @@ symbolic execution techniques to capture instructions' true semantics.
 The primary emulator verification algorithm requires as inputs:
 
 \begin{itemize}
-    \item A concrete test trace $((x_1, S_1), …, (x_n, S_n))$. This is a trace of the program $P_X = (x_i)$'s execution
-        via the tested emulator. It comprises program state snapshots $S_i$ (which contain the process's concrete
-        register- and memory contents before $x_i$ is executed) for each emulated instruction $x_i$.
-    \item A symbolic reference trace $(\sigma_1, …, \sigma_n)$. This is the oracle. It is a trace of the same program,
-        but, instead of program snapshots, it defines symbolic equations that encapsulate the corresponding
-        instruction's \textit{correct} behaviour: $\sigma_i(S) = x_i(S)$ for any program state $S$.
+    \item A concrete test trace, which is a trace of the program's execution via the tested emulator. It comprises a
+        list of instructions executed and corresponding program state snapshots at each instruction, meaning the
+        process's register- and memory contents.
+    \item A symbolic reference trace. This is the oracle, and it is computed by Focaccia. It is a trace of the same
+        program, but, instead of program state snapshots, it defines symbolic equations that encapsulate the
+        corresponding instruction's \textit{correct} behaviour.
 \end{itemize}
 
-For each instruction and program snapshot $(x_i, S_i)$ in the concrete trace, the verifier uses the corresponding
-symbolic equation $\sigma_i$ to predict the next concrete state $S'_{i+1} = \sigma_i(S_i) = x_i(S_i)$, which is the
-expected outcome if instruction $x_i$ acted on $S_i$ correctly. It then tests whether $S'_{i+1} = S_{i+1}$ (where
-$S_{i+1} = E(x_i)(S_i)$, $E$ the tested emulator), meaning it compares whether the emulator's state matches the expected
-state. Another way to think about this is that the verifier calculates a state difference $\Delta_{S_{i+1}} = S'_{i+1}
-- S_{i+1}$. If $\Delta_{S_{i+1}} \neq 0$, then the emulator's state diverges from the truth state, meaning its
-translation of $x_i$ is faulty and a detailed error message is generated that includes the faulty instruction, the
-expected transformation $\sigma_i$, and the changes in values that the emulator has actually (wrongly) calculated.
+The verifier steps through the test trace and calculates for each program snapshot the truth state that \textbf{should}
+result from executing the corresponding instruction on the test state; it uses the respective equation from the symbolic
+trace to compute this truth. It then compares the next test state, meaning the actual state of the emulator after it
+executed the instruction, to the expected truth state. The emulator's implementation of that instruction is faulty if
+these states are not equal---in this case, a detailed error message is issued including the faulty instruction, the
+emulator's faulty state at that point, and the correct transformation that was expected to occur.
 
 % How to use it?
-Focaccia is a command-line invocable program, along with a few helper tools. It takes as input a source of a concrete
-trace and a source of a symbolic trace. The former is usually an emulator's log. The latter is usually the traced
-program from which the verifier will generate the symbolic trace. Data from these sources are used to compute the
-comparison described above and finally a summary of the results is printed. We include a tool that can pre-calculate
-symbolic traces for a program and export them to a file that can later be fed to the main program for verification.
-Additionally, a helper script that records concrete traces in the form of efficient minimal program snapshots (see
-section~\ref{sec:minimal_snapshots}) from emulators that provide a \texttt{gdbserver}
-interface~\cite{Sourceware2024GdbRemoteProtocol} (QEMU for example) is also included.
+Focaccia is a command-line invocable program with a few helper tools. It takes as input a source of a concrete trace and
+a source of a symbolic trace. The former is usually an emulator's log (see section~\ref{sec:obtaining_snapshots} for
+details on this matter). The latter is usually the traced program from which the verifier will generate the symbolic
+trace. Data from these sources are used to compute the comparison described above and finally print a summary of the
+results. Pre-computing symbolic traces for a program and exporting them to a file that can later be fed to the main
+program for verification is also possible. Additionally, we include a helper script that records concrete traces in the
+form of efficient minimal program snapshots from emulators that provide a \texttt{gdbserver}
+interface~\cite{Sourceware2024GdbRemoteProtocol} (QEMU, for example).
 
-\section{Focaccia's Position in the Software Testing Landscape}
+\section{Focaccia's Position in the Software Testing Landscape}\label{sec:testing}
 
 % Categorization
 In the domain of automated testing, our specific interest can be categorized as \textit{correctness testing}. We can
