@@ -5,81 +5,23 @@
 
 \section{Motivation}
 
-Arancini, a binary emulator, is a project at the \ac{DSE}. In the process of its development we observed that, as is the
-case with all large-scale software projects, its growing complexity started to hinder maintainability and progress. A
-particular difficulty specific to an emulator's problem domain is the fact that both input- and output data are
-binary---that is, non human-readable data, which poses significant difficulties during debugging in the development
-cycle. The most logical way of dealing with binary data is to process it programmatically: our initial hypothesis is
-that automated testing tools could, in part, alleviate these restrictions of human cognition and facilitate development
-efficiency.
-
-\section{Approach}
-
-Emulators or, in general, binary translators take as input machine instructions of an \ac{ISA} $X$ and produce
-semantically equivalent instructions for an \ac{ISA} $Y$. In the special case of emulators, we call $X$ the
-\textit{guest} \ac{ISA} and $Y$ the \textit{host} \ac{ISA}. Testing a translator (with respect to correctness) means to
-check whether the output it generates is in fact semantically equivalent to its input.
-
-Formal verification, if indeed the highest attainable correctness standard, is often impractical for large-scale
-projects. Thus, we employ a classical pragmatic testing paradigm in which manually compiled lists of test cases are
-checked for correctness; one obtains a \textit{heuristic certainty}.
-
-\section{Definitions}\label{sec:definitions}
-
-% Definition 'Program'
-A program $P_X = (x_i)_{1 \leq i \leq n}$ of an \ac{ISA} $X$ is a series of $n$ instructions, each of which is a mapping
-of program states $S_i \mapsto x_i(S_i)$. Thus, a program can be expressed as
-    $P_X : S_1 \mapsto S_{n+1} = x_n(S_n)$
-with an arbitrary fixed input state $S_1$. Two programs are \textbf{semantically equivalent} if $P_X(S) = P_Y(S)$ for
-all input states $S$. In this case, we write $P_X \equiv P_Y$.
-
-% Definition 'translator', local discreteness
-A binary translator (which may be an emulator) can be modelled as a function $E_{X \rightarrow Y}: P_X \mapsto P_Y$. It
-is \textbf{correct} if the output program is semantically equivalent to the input program:
-    $P_X \equiv E_{X \rightarrow Y}(P_X)$.
-A binary translator is \textbf{locally discrete}, or context-independent, if it achieves $P_X \mapsto P_Y$ by mapping
-each guest instruction individually to a semantically equivalent host program:
-\begin{equation}\label{sem_eq}
-    E_{X\rightarrow Y}(P_X) = E_{X \rightarrow Y}((x_i)_{1 \leq i \leq n}) = (E_{X \rightarrow Y}(x_i))_{1 \leq i \leq n} = P_Y
-\end{equation}
-with $E_{X\rightarrow Y}(x_i) \in \mathcal{P}_Y$ (where $\mathcal{P}_Y$ is the set of all programs of $Y$). In other
-words, $E_{X\rightarrow Y}$ is distributive with respect to function application in $X$.
-
-% Result local equivalence => global equivalence
-If the semantic equivalence condition holds for each translation unit individually, it follows that it also holds globally:
-\begin{equation}\label{eq:local_to_global_discreteness}
-    x_i \equiv E_{X\rightarrow Y}(x_i) \forall i \implies (x_i) \equiv (E_{X\rightarrow Y}(x_i)) \implies P_X \equiv P_Y
-\end{equation}
+In the development process of a binary translator, Arancini, we observed that, as is the case with all large-scale
+software projects, its growing complexity started to hinder maintainability and progress. A particular difficulty
+specific to an emulator's problem domain is the fact that both input- and output data are binary---that is,
+non-human-readable data, which poses significant difficulties during debugging in the development cycle. The most
+logical way of dealing with binary data is to process it programmatically: our initial hypothesis is that automated
+testing tools could partially alleviate these restrictions of human cognition and facilitate development efficiency.
 
 \section{Focaccia}\label{sec:intro:focaccia}
 
-In practice, binary translators are implemented as locally discrete translators. Focaccia exploits this property and
-therefore takes on the endeavour of implementing the equivalence check $x \equiv E_{X \rightarrow Y}(x)$. Attempting to
-solve this directly bears the following problems:
+Focaccia verifies emulator correctness automatically. It traces an emulator's state at instruction-level granularity
+during program execution and compares it to an oracle-based truth state, thereby establishing whether instruction
+implementations act on program state in accordance with their specified semantics. Focaccia computes these test truths
+itself by utilizing symbolic execution technology to implement said oracle.
 
-\begin{enumerate}
-    \item What is $x$? Usually, an \ac{ISA} does not have a canonical way to represent its instructions as manipulable
-        functions.
-    \item What is $E_{X \rightarrow Y}(x)$? Translators, and particularly emulators, may be unable to communicate the
-        translation they produce. The inability to generate it in the form of manipulable equations is universal.
-    \item When is $x \equiv y$? A theorem checker could solve this problem.
-    \item Comparing $x \equiv y$ is not enough, even if it were feasible, because the translation $E_{X \rightarrow
-        Y}(x) = (y_j)_{1 \leq j \leq m} \in \mathcal{P}_Y$ may be a series of \textbf{multiple} instructions in $Y$, so
-        the true question expands to: When is $x \equiv (y_j)$?
-\end{enumerate}
+\section{Challenges}\label{sec:intro:challenges}
 
-Even though theorem solvers exist that can tackle problems 3 and 4 (for example Microsoft's Z3 theorem
-prover~\cite{Z3prover2024Mar}), problem 2 makes this direct approach impossible. We can get around this by testing
-whether $x(S) = [E_{X \rightarrow Y}(x)](S)$, which by definition implies $x \equiv E_{X \rightarrow Y}(x)$. The set of
-problems to solve reduces to:
+List of stuff we do
 
-\begin{enumerate}
-    \item What is $S = x(S_0)$? We call $S$ the \textit{truth state}; it can be obtained by executing $x$ with a machine
-        implementing $X$.
-    \item What is $S^E = [E_{X \rightarrow Y}(x)](S_0)$? We call $S^E$ the \textit{test state}; it is obtained by
-        executing the translation of $x$ on an initial program state.
-    \item When is $S = S^E$? As program states $S$ are constants, their equality is theoretically trivial. Practically,
-        however, the start states of the guest program and the translator's output program are often not precisely
-        equal. Therefore we implement an equivalence operator $S \equiv S^E$ which represents an equality with respect
-        to differing start states. Chapter~\ref{chapter:implementation} discusses this necessity in detail.
-\end{enumerate}
+
+Think about the ordering of sections in Design

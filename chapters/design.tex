@@ -2,24 +2,99 @@
 
 \section{The Algorithm: An Abstract Description}\label{sec:abstract_algo}
 
+\subsection{Definitions}\label{sec:definitions}
+
+Emulators, or binary translators in general, take as input machine instructions of an \ac{ISA} $X$ and produce
+semantically equivalent instructions for an \ac{ISA} $Y$. In the special case of emulators, we call $X$ the
+\textit{guest} \ac{ISA} and $Y$ the \textit{host} \ac{ISA}.
+
+% Definition 'Program'
+A program $P_X = (x_i)_{1 \leq i \leq n}$ of an \ac{ISA} $X$ is a series of $n$ instructions, each of which is a mapping
+of program states $S_i \mapsto x_i(S_i)$. Thus, a program can be expressed as
+    $P_X : S_1 \mapsto S_{n+1} = x_n(S_n)$
+with an arbitrary fixed input state $S_1$. Two programs are \textbf{semantically equivalent} if $P_X(S) = P_Y(S)$ for
+all input states $S$. In this case, we write $P_X \equiv P_Y$.
+
+% Definition 'translator', local discreteness
+A binary translator (which may be an emulator) can be modelled as a function $E_{X \rightarrow Y}: P_X \mapsto P_Y$. It
+is \textbf{correct} if the output program is semantically equivalent to the input program:
+    $P_X \equiv E_{X \rightarrow Y}(P_X)$.
+A binary translator is \textbf{locally discrete}, or context-independent, if it achieves $P_X \mapsto P_Y$ by mapping
+each guest instruction individually to a semantically equivalent host program:
+\begin{equation}\label{eq:locally_discrete}
+    E_{X\rightarrow Y}(P_X) = E_{X \rightarrow Y}((x_i)_{1 \leq i \leq n}) = (E_{X \rightarrow Y}(x_i))_{1 \leq i \leq n} = P_Y
+\end{equation}
+with $E_{X\rightarrow Y}(x_i) \in \mathcal{P}_Y$ (where $\mathcal{P}_Y$ is the set of all programs of $Y$). In other
+words, $E_{X\rightarrow Y}$ is distributive with respect to function application in $X$. Note that single instructions
+are programs by the definition above ($\forall x \in X: x \in \mathcal{P}_X $), meaning the argument to an emulator
+function $E$ can be a single instruction or a series of instructions, i.e., a program.
+
+% Result local equivalence => global equivalence
+If the semantic equivalence condition holds for each translation unit individually, it follows that it also holds globally:
+\begin{equation}\label{eq:local_to_global_discreteness}
+    x_i \equiv E_{X\rightarrow Y}(x_i) \forall i \implies (x_i) \equiv (E_{X\rightarrow Y}(x_i)) \implies P_X \equiv P_Y
+\end{equation}
+
+\subsection{Testing Program Equivalence}\label{sec:program_equiv}
+
+Focaccia tests the correctness of emulators (refer to section~\ref{sec:testing}): formally, it takes on the endeavour of
+implementing the equivalence check $P_X \equiv E_{X \rightarrow Y}(P_X)$. To make this problem tractable (because a
+non-simplified version is essentially the concern of formal verification methods, which are rarely realistically
+applicable to large programs, and certainly not in an automated way), we can exploit the fact that binary translators
+are always implemented as locally discrete translators and combine that with the result from
+equation~\ref{eq:local_to_global_discreteness}: We now check whether $x_i \equiv E_{X \rightarrow Y}(x_i)$ for all $x_i
+\in P_X$, which implies $P_X \equiv E_{X \rightarrow Y}(P_X)$.
+
+Attempts to solve this equivalence directly bear the following problems:
+
+\begin{enumerate}
+    \item We need to find $x$. Usually, an \ac{ISA} does not have a canonical way to represent its instructions as
+        manipulable functions.
+    \item We need to find $E_{X \rightarrow Y}(x)$.
+    \item We need to determine when $x \equiv y$.
+    \item Comparing $x \equiv y$ is not enough, even if it were feasible, because the translation $E_{X \rightarrow
+        Y}(x) = (y_j)_{1 \leq j \leq m} \in \mathcal{P}_Y$ may be a series of \textbf{multiple} instructions in $Y$, so
+        the true question expands to: When is $x \equiv (y_j)$?
+\end{enumerate}
+
+Theorem solvers that can tackle problems 3 and 4 exist; an example is Microsoft's Z3 theorem
+prover~\cite{Z3prover2024Mar}. Problem 2, however, makes this direct approach impossible. To elaborate: Static binary
+translators output the translation as generated machine code, but dynamic binary translators, on which our focus lies,
+do not. Emulators implement guest instructions opaquely in complex high-level language code and cannot extract the
+abstract equation that is implemented by this code, meaning it cannot know or communicate $E(x)$---the impossibility of
+solving problem 2 directly is the premise on which Focaccia is useful.
+
+To circumvent this unsolvable requirement, we can restate the problem and test whether $x(S) = [E_{X \rightarrow
+Y}(x)](S)$, which by definition implies $x \equiv E_{X \rightarrow Y}(x)$. This means that we have to find the
+emulator's \textbf{state} rather than its action on states. The set of problems to solve reduces to:
+
+\begin{enumerate}
+    \item We need to find $S = x(S_0)$. We call $S$ the \textit{truth state}: it is the state that results when an
+        instruction $x$ is correctly applied to an initial program state $S_0$.
+    \item We need to find $S^E = [E_{X \rightarrow Y}(x)](S_0)$. We call $S^E$ the \textit{test state}; it is obtained
+        by executing the translation of $x$ on an initial program state $S_0$. Section~\ref{sec:obtaining_snapshots} is
+        concerned with this task.
+    \item We need to determine when $S = S^E$. As program states $S$ are constants, their equality is theoretically
+        trivial. Practically, however, the respective initial states of the native program and the translated program
+        are often not precisely equal. Therefore we implement an equivalence operator $S \equiv S^E$ which represents an
+        equality with respect to differing start states. Section~\ref{sec:comparison} explores this necessity in detail.
+\end{enumerate}
+
 \subsection{Local Discreteness}\label{sec:local_discreteness}
 
-Requiring a tested translator to satisfy local discreteness is imperative to verify whether $P_X \equiv E_{X \rightarrow
-Y}(P_X)$. This is because, if this requirement weren't assumed, a verifier would either have to know the result of
-comparing every possible program of $X$ to every possible program of $Y$ in advance (which is obvious nonsense as both
-of these sets are infinitely large) or be a sort of theoretical abstract tautology, in other words an algorithm that is
-not actually implementable. This argument simultaneously shows that every implementation of a binary translator
-\textbf{must necessarily} be locally discrete for the same reasons.
+It was argued that requiring a tested translator to satisfy local discreteness is imperative to verifying whether $P_X
+\equiv P_Y$ when dealing directly on the level of equivalences; $\mathcal{P}_X$ and $\mathcal{P}_Y$ are infinitely
+large, therefore a divide-and-conquer approach is inevitably necessary.
 
-However, when we use the definition of program equivalence to transform the problem into $P_X(S) = [E_{X \rightarrow
-Y}(P_X)](S)$, the global comparison of result states becomes possible again. While this removes the theoretical
-necessity for the local discreteness assumption, it is still practically useful, if not essential. An outcome of
-comparing result states of full program executions would be a statement like "The program's translation is erroneous".
-This is too general of an assertion to be useful to developers. When we instead use local discreteness and check for all
-intermediate states whether $S_i = S^E_i$ (where $S_i = x_{i-1}(S_{i-1})$ and $S^E_i = E_{X \rightarrow
-Y}(x_{i-1})(S^E_{i-1})$ with $S_1 = S^E_1$ an arbitrary initial state), we can generate much more detailed information,
-such as "Instruction $x_i$ is translated incorrectly because $S_i \neq S^E_i$". This is exactly the type of feedback
-that Focaccia seeks to provide.
+However, when we use the definition of semantical program equivalence to transform the problem from $P_X \equiv E_{X
+\rightarrow Y}(P_X)$ to $P_X(S) = [E_{X \rightarrow Y}(P_X)](S)$, the global comparison of result states becomes
+possible again.  While this removes the theoretical necessity for the local discreteness assumption, it is still
+practically useful, if not essential. An outcome of comparing result states of full program executions would be a
+statement like "The program's translation is erroneous". This is too general of an assertion to be useful to
+developers. When we instead use local discreteness and check for all intermediate states whether $S_i = S^E_i$ (where
+$S_i = x_{i-1}(S_{i-1})$ and $S^E_i = E_{X \rightarrow Y}(x_{i-1})(S^E_{i-1})$, with $S_1 = S^E_1$ an arbitrary initial
+state), we can generate much more detailed information, such as "Instruction $x_i$ is translated incorrectly because
+$S_i \neq S^E_i$~". This is exactly the type of feedback that Focaccia seeks to provide.
 
 Additionally, it lets the algorithm recover from errors: Even if an instruction $x_i$ turns out to be implemented
 incorrectly, thus producing an incorrect state $S^E_{i+1}$, that state is only incorrect from the viewpoint of program
@@ -27,32 +102,38 @@ semantics. The verifier, however, can still treat it as a valid input state to a
 because the translation $E_{X \rightarrow Y}(x_j)$ is required to be \textit{locally correct} for a locally discrete
 translator, that is, it must work correctly on \textbf{any} program state.
 
+Note that it is valid to assume an emulator's implementation to be locally discrete because it is not only by far the
+most feasible strategy to implement any binary translator, but also the core axiom of dynamic binary translation itself:
+an emulator is \textbf{defined} as an online interpreter that operates with only a local view on the program.
+
+A first version of a verification algorithm could thus look as follows: We run $P_X$ on one initial state $S_1$ and the
+translation $E_{X \rightarrow Y}(P_X)$ on the same initial state, during which we record intermediate states of each
+execution, obtaining two respective lists of program states $(S_1, S_2 = x_1(S_1), S_3 = x_2(S_2), …)$ and $(S^E_1,
+S^E_2 = E_{X \rightarrow Y}(x_1)(S_1), S^E_3 = E_{X \rightarrow Y}(x_2)(S^E_2), …)$ with $S_1 = S^E_1$. For each pair of
+states $(S_i, S^E_i)$, we test whether $S_i = S^E_i$. If this equality does \textbf{not} hold, then $x_i \not\equiv E_{X
+\rightarrow Y}(x_i)$, meaning the translator's implementation of $x_i$ is faulty.
+
 \subsection{Comparing Program States}\label{sec:comparison}
 
-A naive verification algorithm works as follows: We run $P_X$ on one initial state $S$ and the translation $E_{X
-\rightarrow Y}(P_X)$ on the same initial state, during which we record the respective intermediate states $S_i$ and
-$S^E_i$. For each pair of states, test whether $S_i = S^E_i$. If this equality does \textbf{not} hold, then the
-translator's implementation of $x_i$, meaning the translation $x_i \mapsto (y_j)$, is faulty.
-
-The intuitive way of implementing the equality operator on program states ($S = S'$) is by comparing register- and
-memory content. These values are what constitute the state of a program, and they are numeric values with a canonical
-condition for equality. However, as section \ref{sec:intro:focaccia} indicated, comparing program states is more complex
-in reality. That is because the starting states for the execution of programs are not always equal: the previous
-assumption that $S_1 = S^E_1$ is not necessarily true. In fact, it is most commonly false. Possible contributing factors
-(subsequently collectivized as a general \textit{difference in environment}) include:
+The algorithm requires an equality operator on program states: $S = S'$. An intuitive way of implementing this operator
+is by comparing the register- and memory content. These values are what constitute the state of a program, and they are
+numeric values with a canonical condition for equality. However, as section~\ref{sec:program_equiv} indicated, comparing
+program states is more complex in reality. That is because the starting states for the execution of programs are not
+always equal: the previous assumption that $S_1 = S^E_1$ is not necessarily true. In fact, it is most commonly false.
+Possible contributing factors (subsequently collectivized as a general \textit{difference in environment}) include:
 
 \begin{itemize}
     \item Different initial stack pointers.
     \item Different addresses of heap allocations.
     \item Different environment- and auxiliary vectors. The latter is particularly interesting. It turns out that
         the auxiliary vector provided by QEMU, for example, routinely differs from the one provided by the operating
-        system. See section \ref{sec:auxv} for more details.
+        system. See section~\ref{sec:auxv} for more details.
 \end{itemize}
 
 Therefore, instead of comparing $P_X(S) = P_Y(S')$, which does \textbf{not} imply $P_X \equiv P_Y$ if $S \neq S'$, the
 comparison must take into account the initial difference $\Delta_S = S - S'$ and establish a \textbf{state equivalence}
-$P_X(S) \equiv_{\Delta_S} P_Y(S') \implies P_X \equiv P_Y$ with respect to it. This is the chief nontriviality that
-Focaccia's algorithm solves.
+$P_X(S) \equiv_{\Delta_S} P_Y(S') \implies P_X \equiv P_Y$ with respect to it.
+%This is the chief nontriviality that Focaccia's algorithm solves.
 
 The way we calculate this equivalence is by re-introducing information about the guest instructions $x_i$ to the
 algorithm which, in order to simplify the problem, we have discarded when we transformed the central question from $x
@@ -72,73 +153,57 @@ desired equality comparison $x_i(S_i) = E_{X \rightarrow Y}(x_i)(S_i)$. The draw
 require an additional piece of information: We need to know $x_i$.
 
 Not only do we need to know what every $x_i$ is, but we also demand a way of applying it individually to an arbitrary
-program state which we determine, or, more precisely, which is being determined by the translation's execution. One
-approach would be to generate and run a small program or piece of code that sets up the correct machine state, then runs
-the instruction in question, and finally reads the resulting state back. We chose a different path: We use symbolic
-execution tools to translate instructions into equations, which we then manually apply to the states we want to test.
+program state we determine or, more precisely, which is being determined by the translation's execution. One approach
+would be to generate and run a small program or piece of code that sets up the correct machine state, then runs the
+instruction in question, and finally reads the resulting state back. We chose a different path: We use symbolic
+execution tools to translate instructions into equations, which we manually apply to the states we want to test.
 Section~\ref{sec:symb_exec} explains how this works.
+
+% Explanation of the comparison algorithm from Overview, from which I had to remove all math:
+%
+%The primary emulator verification algorithm requires as inputs:
+%
+%\begin{itemize}
+%    \item A concrete test trace $((x_1, S_1), …, (x_n, S_n))$. This is a trace of the program $P_X = (x_i)$'s execution
+%        via the tested emulator. It comprises program state snapshots $S_i$ (which contain the process's concrete
+%        register- and memory contents before $x_i$ is executed) for each emulated instruction $x_i$.
+%    \item A symbolic reference trace $(\sigma_1, …, \sigma_n)$. This is the oracle. It is a trace of the same program,
+%        but, instead of program snapshots, it defines symbolic equations that encapsulate the corresponding
+%        instruction's \textit{correct} behaviour: $\sigma_i(S) = x_i(S)$ for any program state $S$.
+%\end{itemize}
+%
+%For each instruction and program snapshot $(x_i, S_i)$ in the concrete trace, the verifier uses the corresponding
+%symbolic equation $\sigma_i$ to predict the next concrete state $S'_{i+1} = \sigma_i(S_i) = x_i(S_i)$, which is the
+%expected outcome if instruction $x_i$ acted on $S_i$ correctly. It then tests whether $S'_{i+1} = S_{i+1}$ (where
+%$S_{i+1} = E(x_i)(S_i)$, $E$ the tested emulator), meaning it compares whether the emulator's state matches the expected
+%state. Another way to think about this is that the verifier calculates a state difference $\Delta_{S_{i+1}} = S'_{i+1}
+%- S_{i+1}$. If $\Delta_{S_{i+1}} \neq 0$, then the emulator's state diverges from the truth state, meaning its
+%translation of $x_i$ is faulty and a detailed error message is generated that includes the faulty instruction, the
+%expected transformation $\sigma_i$, and the changes in values that the emulator has actually (wrongly) calculated.
 
 \section{Symbolic Execution}\label{sec:symb_exec}
 
-Symbolic execution is a technique in which programs are executed abstractly with symbolic values~\cite{Steinhöfel2022}.
-Certain values at any point in the program are replaced by symbols that represent multiple or all possible values.
-Symbolic execution then tracks those symbols' evolution throughout the program's execution.
-\lstlistingname~\ref{fig:symbexec_example_listing} shows a code example. In a usual \textit{concrete} execution,
-\texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example, we set
-\texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}. If, on
-the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol \texttt{a = $\alpha$},
-the symbolic execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c
-= ((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic
-symbol $\alpha$.
+The task at hand is to find a representation of any instruction $x$ that encapsulates the semantics of the
+transformation it applies to program states on which it is executed and is able to calculate that operation on synthetic
+program states. Focaccia uses symbolic execution tools to translate instructions into symbolic equations that do
+precisely that. It turns out that if one executes an instruction via a symbolic execution engine on an input state that
+is not only partly but entirely symbolic, the resulting equation fully represents that instruction's semantics.
 
-\begin{figure}[htbp]
-    \centering
-    \begin{tabular}{c}
-    \begin{lstlisting}[language=Python]
-        a = ?
-        b = a - 5
-        if (b % 3) == 0:
-            c = a + 10
-        else:
-            c = -3
-    \end{lstlisting}
-    \end{tabular}
-    \caption[Symbolic execution example]{Symbolic Execution Sample Code}\label{fig:symbexec_example_listing}
-\end{figure}
+This is an uncommonly seen use of symbolic execution as inputs to a program are usually symbolized selectively, as
+otherwise, the branching complexity of nontrivial programs quickly leads to exponential inflation of the equations' size
+and the number of explored paths. This problem is moot if we only trace a single instruction at any time: no symbolic
+branching conditions are ever propagated through multiple instructions.  Overall, only one path through the program is
+considered, and the effort thus remains linear.
 
-% TODO: Can I use citations from Steinhöfel2022 to cite every single of the following use cases or is the single
-% reference to the Steinhöfel2022 chapter sufficient?
-
-This technique is often used to reverse-engineer program inputs, to implement symbolic debugging, or to test programs
-either by proving properties of the resulting equations (e.g.\ when is \texttt{c == 12}?) or by generating test cases
-from the equation. We use symbolic execution tools for machine code to translate instructions into manipulable
-functions/equations which we can then apply to program states via an interpreter. It turns out, that, if one executes an
-instruction via a symbolic execution engine on an input state which is not only partly but entirely symbolic, the
-resulting equation is a full representation of that instruction's semantics. This is an uncommonly seen use of symbolic
-execution as inputs to a program are usually symbolized selectively, otherwise the branching complexity of full programs
-quickly leads to an exponential inflation of the equations' size as well as the number of explored paths. This is not a
-problem if we only trace a single instruction at any time: no symbolic branching conditions are ever propagated through
-multiple instructions. Overall, only one path through the program is considered and the effort thus remains linear.
-
-Formally, we denote this use of symbolic execution as a map $G$ from an instruction $x \in X$ to a symbolic entity
-$\sigma$ which is composed from a symbolic alphabet $\Sigma$ and is itself a function of program states: $G_{X
-\rightarrow \Sigma}: x \mapsto \sigma$ with $x(S) = \sigma(S)$ where $G$ is called the \textbf{symbolic expression
-generator} for $X$. The perceptive reader will have noticed that this translation resembles a locally discrete binary
-translator (though a generalized version whose target language is not specifically an \ac{ISA}, but an abstract symbolic
-language), with the addition of a \textit{correctness condition}. This is in fact the case. Essentially, Focaccia relies
-on the existence of one correct binary translator $E_{X \rightarrow \Sigma}$ which translates the guest \ac{ISA} $X$ to
-a symbolic language $\Sigma$. See section~\ref{sec:symb_exec_backend} for further discussion of problems that this
-approach bears.
-
-\subsection{Obtaining an Instruction}
-
-In the first prototype, we used a disassembly framework to load a binary and disassemble it in its entirety. This was
-slow and produced many unnecessary computations (disassembling instructions that are never touched), so we started
-disassembling instructions on demand, i.e., at each program counter, only read the next instruction. This works for
-statically linked binaries as all information is in one file and can be loaded from there. In the third iteration, in
-order to support dynamically linked programs and even \ac{JIT} compiled code, we omit loading the binary entirely and
-instead read the current instruction directly from the running program's memory; this is usually a concrete execution
-running alongside Focaccia.
+Formally, we denote a \textbf{symbolic expression generator} for an \ac{ISA} $X$ as a map $G$ from an instruction $x \in
+X$ to a symbolic entity $\sigma$ which is composed from a symbolic alphabet $\Sigma$ and is itself a function of program
+states: $G_{X \rightarrow \Sigma}: x \mapsto \sigma$ with $x(S) = \sigma(S)$. The perceptive reader will have noticed
+that this translation resembles a locally discrete binary translator (though a generalized version whose target language
+is not specifically an \ac{ISA}, but an abstract symbolic language), with the addition of a \textit{correctness
+condition}. This is, in fact, the case. Essentially, Focaccia relies on the existence of one correct binary translator
+$G_{X \rightarrow \Sigma}$ that translates the guest \ac{ISA} $X$ to a symbolic language $\Sigma$. It uses $G$ as an
+oracle to verify all other binary translators. See section~\ref{sec:symb_exec_backend} for further discussion of
+problems that this approach bears.
 
 \subsection{A Symbolic Representation}
 
@@ -227,9 +292,14 @@ to obtain), then the symbolic expression generator $E_{X \rightarrow \Sigma}$ is
     \caption{Verification of the Symbolic Expression Generator}\label{fig:symb_generator_verification}
 \end{figure}
 
-\section{Tracing the Program}\label{sec:concolic_tracing}
+\section{Working on Complete Programs}\label{sec:concolic_tracing}
 
-As noted in the introduction to section~\ref{sec:symb_exec} recording an entire program as one symbolic equation is
+% TODO: Elaborate.
+Now that we can represent single instructions' semantics and use them to manipulate program states at will, we need to
+tie that mechanism into the context of a complete program execution.
+
+% TODO: Remove this paragraph.
+As noted in the introduction to section~\ref{sec:symb_exec}, recording an entire program as one symbolic equation is
 impossible in almost all practical cases. Not only do branches cause the equations to blow up exponentially, but any
 kind of loop will never be able to halt at all as the termination condition can never resolve to a concrete
 \texttt{true} or \texttt{false} answer. This limitation has been pointed out before many times, and the practical
@@ -245,11 +315,21 @@ representations. This tactic avoids branching in the symbolic execution entirely
 run of a program into symbolic entities. This approach can be classified as a type of dynamic symbolic execution in the
 realm of concolic execution.
 
-As already stated, this approach eliminates the most blatant shortcomings of symbolic execution, though, in doing so,
+As already stated, this approach eliminates the most blatant shortcomings of symbolic execution, though in doing so
 induces a dependency on a certain amount of concreteness. Besides sacrificing soundness (not all inputs for which the
 program is faulty are actually found), that concreteness contains remnants of the conceptually eliminated initial state
 difference $\Delta_S$ (see section~\ref{sec:comparison}). The way this difference manifests itself is by modifying the
 concrete execution's path through the program, and therefore also that of the symbolic trace.
+
+\subsection{Obtaining an Instruction}
+
+For the first prototype, we used a disassembly framework to load a binary and disassemble it in its entirety. This was
+slow and produced many unnecessary computations (disassembling instructions that are never touched), so we started
+disassembling instructions on demand, i.e., at each program counter, only read the next instruction. This works for
+statically linked binaries, as all information is in one file and can be loaded from there. In the third iteration, in
+order to support dynamically linked programs and even \ac{JIT}-compiled code, we forego the binary file entirely and
+instead read the current instruction directly from the running program's memory; this is usually a concrete execution
+running alongside Focaccia.
 
 \subsection{Trace Mismatches}\label{sec:trace_mismatch}
 
@@ -318,6 +398,7 @@ Problematic is the case where both granularity mismatch \textbf{and} trace diver
 fundamentally unsolvable in a trace post-processing scenario because one cannot differentiate between excess
 instructions resulting from different branching behaviour and excess instructions from higher trace granularity.
 
+% TODO: Move this detail to Implementation.
 \subsection{Auxiliary Vector}\label{sec:auxv}
 
 An interesting source of difference in branching behaviour between concrete- and emulator execution is the auxiliary
@@ -558,7 +639,7 @@ problem---the only thing that needs to be tested is whether all values that shou
 instruction have remained the same, no matter their concrete value. Obviously, establishing both an upper- and a lower
 bound would imply certainty that an instruction does \textbf{exactly} what it is supposed to do. With minimal snapshots
 and all of the benefits that go along with them, however, that becomes impossible since the data required for the
-calculation is not present.
+calculation is not present anymore.
 
 
 

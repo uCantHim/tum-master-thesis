@@ -29,6 +29,39 @@ restricted scenarios or when enhanced with advanced heuristical approaches~\cite
 guided by concrete state to avoid combinatory explosions while still achieving reasonably exhaustive results, is one of
 these more recent developments. Focaccia's algorithm is a customized variant of this concept.
 
+
+\iffalse
+Symbolic execution is a technique in which programs are executed abstractly with symbolic values~\cite{Steinhöfel2022}.
+Certain values at any point in the program are replaced by symbols that represent multiple or all possible values.
+Symbolic execution then tracks those symbols' evolution throughout the program's execution.
+\lstlistingname~\ref{fig:symbexec_example_listing} shows a code example. In a usual \textit{concrete} execution,
+\texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example, we set
+\texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}. If, on
+the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol \texttt{a = $\alpha$},
+the symbolic execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c
+= ((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic
+symbol $\alpha$.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=Python]
+        a = ?
+        b = a - 5
+        if (b % 3) == 0:
+            c = a + 10
+        else:
+            c = -3
+    \end{lstlisting}
+    \end{tabular}
+    \caption[Symbolic execution example]{Symbolic Execution Sample Code}\label{fig:symbexec_example_listing}
+\end{figure}
+
+This technique is often used to reverse-engineer program inputs, to implement symbolic debugging, or to test programs
+either by proving properties of the resulting equations (e.g.\ when is \texttt{c == 12}?) or by generating test cases
+from the equation.
+\fi
+
 % "Symbolic execution is a popular program analysis technique introduced in the mid ’70s to test whether certain
 % properties can be violated by a piece of software [16, 58, 67, 68]"~\cite{Baldoni2018SymbexecSurvey}.
 %
