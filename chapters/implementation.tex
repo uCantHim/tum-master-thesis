@@ -172,3 +172,79 @@ considered during symbolic expression generation.
     \includegraphics[width=0.7\linewidth]{figures/ir_graph_repstod.png}
     \caption{IR graph for \texttt{REP STOSD}}\label{fig:ir_graph_repstod}
 \end{figure}
+
+To handle the complex case of loops, the destination of branches that are encountered repeatedly is concretizised to a
+single IR block by taking into account the concrete guidance state. This is the only case where concrete state is
+considered during symbolic expression generation.
+
+\subsection{Environmental Differences: The Auxiliary Vector}\label{sec:auxv}
+
+An interesting source of difference in branching behaviour between concrete- and emulator execution is the auxiliary
+vector on Linux systems, which is "a mechanism that the kernel's ELF binary loader uses to pass certain information to
+user space when a program is executed"~\cite{getauxval2024Mar}. Libc's initialization code (at least glibc as well as
+musl libc~\cite{MuslLibc2024Feb}) iterates over that array to bring it into a representation that is indexable by entry
+names, thereby depending its branching behaviour on the array's size. It turns out that QEMU, at least on some systems,
+passes an auxiliary vector to the application that is different from the native auxiliary vector on the same system;
+\figurename~\ref{fig:auxv_comparison} shows an example. While a customized launcher that starts both the tested emulator
+and the symbolic trace recorder could in theory ensure equal environment arrays, the same is not possible for the
+kernel-provided auxiliary vector.
+
+This shows that branch-based trace mismatches are not a rare phenomenon.
+
+\begin{figure}[htpb]
+    \begin{subfigure}[t]{0.4\linewidth}
+        \begin{lstlisting}
+            AT_BASE : 0x790a3a4f3000
+            AT_CLKTCK : 0x7ffd4e2f21b9
+            AT_EGID : 0x3e8
+            AT_ENTRY : 0x5d141499c050
+            AT_EUID : 0x3e8
+            AT_EXECFN : 0x7ffd4e2f2fec
+            AT_FLAGS : 0x0
+            AT_GID : 0x3e8
+            AT_HWCAP : 0x64
+            AT_HWCAP2 : 0x2
+            AT_MINSIGSTKSZ : 0x7f0
+            AT_PAGESZ : 0x1000
+            AT_PHDR : 0x5d141499b040
+            AT_PHENT : 0x38
+            AT_PHNUM : 0xd
+            AT_PLATFORM : 0xbfebfbff
+            AT_RANDOM : 0x7ffd4e2f21a9
+            AT_RSEQ_ALIGN : 0x20
+            AT_RSEQ_FEATURE_SIZE : 0x1c
+            AT_SECURE : 0x0
+            AT_SYSINFO_EHDR : 0x7ffd4e349000
+            AT_UID : 0x3e8
+        \end{lstlisting}
+    \caption{Native AUXV}
+    \label{fig:native_auxv}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.4\linewidth}
+        \begin{lstlisting}
+            AT_BASE : 0x2aaaab2ac000
+            AT_CLKTCK : 0x2aaaab2ab7f9
+            AT_EGID : 0x3e8
+            AT_ENTRY : 0x555555557050
+            AT_EUID : 0x3e8
+            AT_EXECFN : 0x2aaaab2abfd1
+            AT_FLAGS : 0x0
+            AT_GID : 0x3e8
+            AT_HWCAP : 0x64
+            AT_PAGESZ : 0x1000
+            AT_PHDR : 0x555555556040
+            AT_PHENT : 0x38
+            AT_PHNUM : 0xd
+            AT_PLATFORM : 0xfcbfbfd
+            AT_RANDOM : 0x2aaaab2ab7e0
+            AT_SECURE : 0x0
+            AT_SYSINFO_EHDR : 0x2aaaab2e3000
+            AT_UID : 0x3e8
+        \end{lstlisting}
+        \caption{QEMU's AUXV}
+        \label{fig:qemu_auxv}
+    \end{subfigure}
+    \caption{Comparison of auxiliary vectors in native execution and QEMU}
+    \label{fig:auxv_comparison}
+\end{figure}
