@@ -8,8 +8,8 @@ technique's proposition is to execute programs with symbolic values instead of c
 throughout the program as well as conditions imposed on the existence of certain values by branches. This way, a program
 execution represents many to all possible values and/or paths at the same time. The results are symbolic equations for
 the contents of variables or memory, which allow theorem solvers to reason about general properties of the code.
-Questions like "Can assertion X ever fail?", "For which values of variable Y is path A taken instead of path B?", or
-"Does statement Z ever dereference a \texttt{nullptr}?" can be answered with formal certainty.
+Statements like "Assertion X can never fail", "For all $Y > 5$, path A taken instead of path B", or
+"Statement Z never dereferences a \texttt{nullptr}" can be proven with formal certainty.
 
 However, the theoretical vision of perfectly formal symbolic execution turned out to be hardly feasible in practice.
 King, in one of the first papers describing symbolic execution as a novel formal verification technique, noted in 1976:
