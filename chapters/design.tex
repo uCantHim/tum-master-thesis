@@ -221,8 +221,9 @@ problems that this approach bears.
 The component concerned with everything symbolic execution related is the \textbf{symbolic expression generator}. Its
 task is to translate instructions into corresponding symbolic representations which capture the instructions' semantics.
 Figures~\ref{fig:symb_equation_mov} and~\ref{fig:symb_equation_add} show examples of symbolic equations generated from a
-\texttt{MOV} instruction and an \texttt{ADD} instruction, respectively. Section~\ref{sec:symb_expr_impl} details how
-this abstract expression generator is implemented in Focaccia and discusses the challenges involved in that.
+\texttt{MOV} instruction and an \texttt{ADD} instruction, respectively (note that logical state flags in x86's
+\texttt{RFLAGS} register are being treated like individual variables/regsiters here). Section~\ref{sec:symb_expr_impl}
+details how this abstract expression generator is implemented in Focaccia and discusses the challenges involved in that.
 
 \begin{figure}[htbp]
     \centering
