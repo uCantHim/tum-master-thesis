@@ -19,7 +19,7 @@ and popular, though it carries with it significant shortcomings and difficulties
 
 \begin{itemize}
     \item The procedure is not systematic. Ultimately, test quality depends on the developer's abilities and
-        whim---"identifiying which code to test" and the \textit{oracle problem} have been reported as major
+        whim---"identifying which code to test" and the \textit{oracle problem} have been reported as major
         difficulties in writing unit tests~\cite{Daka+2014UnitTestingSurvey}.
     \item The isolated nature of unit tests means that units have to be isolated in the first place, which is often not
         trivial.
@@ -40,7 +40,7 @@ instruction's semantics.
 
 The issues at every step of this approach are glaring: Expected test truths can easily be wrong, especially when the
 same developer that implemented the translation also writes the test and thus applies their own faulty understanding of
-how the instruction should operate to it. Further, complex architectures like X86 can have, in addition to a vast number
+how the instruction should operate to it. Further, complex architectures like x86 can have, in addition to a vast number
 of different instructions, a gigantic number of possible instruction-operand combinations for each instruction which is
 unlikely to be exhausted in manually written tests; additionally, corner cases for inputs are hard to identify, the
 process is excessively time consuming, and, more important than is often admitted: developers don't want to go through
@@ -58,7 +58,7 @@ Focaccia, on the other hand, focuses on tackling the \textit{oracle problem}, th
 \textit{test truths}. Special attention is paid to \textit{practical utility} in emulator development and to avoid
 lengthy setup/integration work, which is a common problem of advanced automated testing technologies. Focaccia aims to
 be usable with minimal setup work and provide an `out-of-the-box' experience, additionally capitalizing on a natural
-occurence of test cases: native programs.
+occurrence of test cases: native programs.
 
 \section{Focaccia's Approach}
 
