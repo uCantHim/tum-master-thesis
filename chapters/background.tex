@@ -5,42 +5,19 @@
 Symbolic execution is a program analysis technique originally developed for software testing in the mid '70s based on
 previous advances in the field of formal verification~\cite{Boyer1975Select, King1975Effigy, Howden1977Dissect}. The
 technique's proposition is to execute programs with symbolic values instead of concrete ones, and track their evolution
-throughout the program as well as conditions imposed on the existence of certain values by branches. This way, a program
-execution represents many to all possible values and/or paths at the same time. The results are symbolic equations for
-the contents of variables or memory, which allow theorem solvers to reason about general properties of the code.
-Statements like "Assertion X can never fail", "For all $Y > 5$, path A taken instead of path B", or
-"Statement Z never dereferences a \texttt{nullptr}" can be proven with formal certainty.
+throughout the program together with conditions that branches impose on the existence of certain values. This way, a
+program execution represents many to all possible values and/or paths at the same time. The results are symbolic
+equations for the contents of variables or memory, which allow theorem solvers to reason about general properties of the
+code. Statements like "Assertion X can never fail", "For all $Y > 5$, path A taken instead of path B", or "Statement Z
+never dereferences a \texttt{nullptr}" can be proven with formal certainty.
 
-However, the theoretical vision of perfectly formal symbolic execution turned out to be hardly feasible in practice.
-King, in one of the first papers describing symbolic execution as a novel formal verification technique, noted in 1976:
-"Many of the troublesome issues arising in program proving systems also occur in symbolic
-execution"~\cite{King1976SymbExec}. The problems he mentioned include array access based on a symbolic index,
-finite-precision of floating point numbers which inhibits mathematically sound, but practically invalid transformations
-of symbolic equations for the sake of simplification (e.g., floating-point addition is not generally commutative on
-computer hardware), and theoretical limitations in decidability for theorem provers. The situation has not improved
-since then---if anything, \textbf{more} problems have been uncovered, especially as the complexity of programming
-languages to which symbolic execution is to be applied has increased massively.
-
-Despite the current problems in state-of-the-art symbolic execution tools like state/path explosion on real nontrivial
-programs, finding appropriate models for symbolic memory (similar to King's array dereferencing problem), and side
-effects of library and system code, symbolic execution can still be used effectively when applied to reasonably
-restricted scenarios or when enhanced with advanced heuristical approaches~\cite{Baldoni2018SymbexecSurvey}.
-\textit{Concolic execution}~\cite{Sen+2005Cute, Sen2007ConcolicTesting}, in which symbolic execution is selectively
-guided by concrete state to avoid combinatory explosions while still achieving reasonably exhaustive results, is one of
-these more recent developments. Focaccia's algorithm is a customized variant of this concept.
-
-
-\iffalse
-Symbolic execution is a technique in which programs are executed abstractly with symbolic values~\cite{Steinhöfel2022}.
-Certain values at any point in the program are replaced by symbols that represent multiple or all possible values.
-Symbolic execution then tracks those symbols' evolution throughout the program's execution.
 \lstlistingname~\ref{fig:symbexec_example_listing} shows a code example. In a usual \textit{concrete} execution,
 \texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example, we set
 \texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}. If, on
-the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol \texttt{a = $\alpha$},
-the symbolic execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c
-= ((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic
-symbol $\alpha$.
+the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol $\alpha$, a symbolic
+execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c =
+((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic symbol
+$\alpha$.
 
 \begin{figure}[htbp]
     \centering
@@ -57,10 +34,23 @@ symbol $\alpha$.
     \caption[Symbolic execution example]{Symbolic Execution Sample Code}\label{fig:symbexec_example_listing}
 \end{figure}
 
-This technique is often used to reverse-engineer program inputs, to implement symbolic debugging, or to test programs
-either by proving properties of the resulting equations (e.g.\ when is \texttt{c == 12}?) or by generating test cases
-from the equation.
-\fi
+However, the theoretical vision of perfectly formal symbolic execution turned out to be hardly feasible in practice.
+King, in one of the first papers describing symbolic execution as a novel formal verification technique, noted in 1976:
+"Many of the troublesome issues arising in program proving systems also occur in symbolic
+execution"~\cite{King1976SymbExec}. The problems he mentioned include array access based on a symbolic index,
+finite-precision of floating point numbers which inhibits mathematically sound, but practically invalid transformations
+of symbolic equations for the sake of simplification (e.g., floating-point addition is not generally commutative on
+computer hardware), and theoretical limitations in decidability for theorem provers. The situation has not improved
+since then---if anything, \textbf{more} problems have been uncovered, especially as the complexity of programming
+languages to which symbolic execution is to be applied has increased massively.
+
+Despite the current problems in state-of-the-art symbolic execution tools like state/path explosion on real nontrivial
+programs, finding appropriate models for symbolic memory (similar to King's array dereferencing problem), and side
+effects of library and system code, symbolic execution can still be used effectively when applied to reasonably
+restricted scenarios or when enhanced with advanced heuristic approaches~\cite{Baldoni2018SymbexecSurvey}.
+\textit{Concolic execution}~\cite{Sen+2005Cute, Sen2007ConcolicTesting}, in which symbolic execution is selectively
+guided by concrete state to avoid combinatory explosions while still achieving reasonably exhaustive results, is one of
+these more recent developments. Focaccia's algorithm is a customized variant of this concept.
 
 % "Symbolic execution is a popular program analysis technique introduced in the mid ’70s to test whether certain
 % properties can be violated by a piece of software [16, 58, 67, 68]"~\cite{Baldoni2018SymbexecSurvey}.
@@ -82,7 +72,7 @@ for each, which also makes this approach generate the most efficient form of pro
 overhead at all. This works for entirely self-contained programs, but programs tend to depend upon third-party software
 of which the source code might not be available at all or may perform architecture-specific work so that it is not
 trivially adaptable to different architectures. Additionally, recompilation and the distribution of multiple binaries
-associated with it is inconvienent and also costly for very large projects.
+associated with it is inconvenient and also costly for very large projects.
 
 Other approaches, which trade off different parts of the aforementioned pros and cons, can be assigned to the rough
 categories of microcoded emulators, software interpreters, and binary translators~\cite{sites1993binary}. The first one
