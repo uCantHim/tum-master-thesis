@@ -105,12 +105,18 @@ semantics. The verifier, however, can still treat it as a valid input state to a
 because the translation $E_{X \rightarrow Y}(x_j)$ is required to be \textit{locally correct} for a locally discrete
 translator, that is, it must work correctly at the level of instruction semantics on \textbf{any} program state.
 
-A first version of a verification algorithm thus looks as follows: We run $P_X$ on one initial state $S_1$ and the
-translation $E_{X \rightarrow Y}(P_X)$ on the same initial state, during which we record intermediate states of each
-execution, obtaining two respective lists of program states $(S_1, S_2, …)$ and $(S^E_1, S^E_2, …)$, $S_i$ and $S^E_i$
-defined as above. For each pair of states $(S_i, S^E_i)$, we test whether $S_i = S^E_i$. If this equality does
-\textbf{not} hold, then $x_i \not\equiv E_{X \rightarrow Y}(x_i)$, meaning the translator's implementation of $x_i$ is
-faulty.
+A first version of a verification algorithm thus looks as follows (figure~\ref{fig:naive_algo} visualizes this
+algorithm): We run $P_X$ on one initial state $S_1$ and the translation $E_{X \rightarrow Y}(P_X)$ on the same initial
+state, during which we record intermediate states of each execution, obtaining two respective lists of program states
+$(S_1, S_2, …)$ and $(S^E_1, S^E_2, …)$, $S_i$ and $S^E_i$ defined as above. For each pair of states $(S_i, S^E_i)$, we
+test whether $S_i = S^E_i$. If this equality does \textbf{not} hold, then $x_i \not\equiv E_{X \rightarrow Y}(x_i)$,
+meaning the translator's implementation of $x_i$ is faulty.
+
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figures/naive_algo.png}
+    \caption{A naive verification algorithm}\label{fig:naive_algo}
+\end{figure}
 
 Note that it is indeed valid to assume an emulator's implementation to be locally discrete because it is not only by far
 the most feasible strategy to implement any binary translator (at least disregarding optimization strategies), but also
@@ -150,9 +156,16 @@ Then, for each $S^E_i$, use the guest instruction $x_i$ to calculate a correspon
 x_i(S^E_i)$. These represent truth states that would result from executing $x_i$ on $S^E_i$ if $x_i$ was implemented
 correctly. Finally, compare the expected state to the actual translation state: $S^E_{i+1} = S_{i+1}$. Again, this works
 because it does not matter to the verifier whether $S^E_{i+1}$ is a \textit{correct} state with regards to whole-program
-semantics.
+semantics. Figure~\ref{fig:algo_overview} shows a high-level overview of this algorithm. This concept is what Focaccia
+implements; only details and practical necessities will change from here on.
 
-Decomposing the pre-translation program $(x_i)$ into its instructions and applying them selectively to the synthetic
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{figures/algorithm_overview.png}
+    \caption{Overview of the Algorithm}\label{fig:algo_overview}
+\end{figure}
+
+Decomposing the pre-translation program $(x_i)$ into its instructions and applying them selectively to the emulator's
 test states as opposed to executing it natively on a semi-random starting state thus allows us to use the same starting
 state for both the translation and the truth program at each instruction, eliminating $\Delta_S$. This enables the
 desired equality comparison $x_i(S_i) = E_{X \rightarrow Y}(x_i)(S_i)$. The drawback of this approach is that we now
