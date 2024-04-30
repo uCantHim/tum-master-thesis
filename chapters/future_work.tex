@@ -1,7 +1,26 @@
 \chapter{Future Work}
 
+\section{The Oracle Problem}
+
+Focaccia chooses symbolic execution as a tool to implement an oracle that predicts the correct behaviour of
+instructions. The evaluation has shown that this approach is theoretically servicable, though susceptible to the same
+problems as those that it tries to solve: Implementing correct representations of instruction semantics is difficult and
+prone to mistake.
+
 One could look into a replacement strategy for symbolic execution, as that is currently Focaccia's strongest weakness.
 Section~\ref{sec:comparison} hinted towards a possible alternative: generate a small program that sets up processor and
-memory state, runs an instruction on it, and then reads back the result: Use the ISA's hardware implementation as the
-oracle. The hardware, after all, is much more likely to have high correctness than a software emulator. One could even
-re-use the reproducer's mechanism, which does pretty much exactly that.
+memory state, runs an instruction on it, and then reads back the result. It uses a hardware implementation as the
+oracle, which undergoes much more rigorous testing than a software emulator. One may be able to re-use the existing
+reproducer's mechanism (implemented by Alp Berkman on top of Focaccia), which performs pretty much exactly this task.
+
+\section{Environments}
+
+Another one of Focaccia's struggles is environment difference between the process that guides symbolic execution and the
+tested emulator. Advanced strategies either to ensure equal environments for both executions or to minimize the
+difference's impact can improve the quality of verification results.
+
+\section{Systematic Test Case Generation}
+
+Focaccia is highly automatic, though still works on specific test cases, meaning the approach is not much more
+systematic than traditional unit testing---it merely works on a different level of program verification. Any technique
+that generates inputs to it systematically can drastically raise the tests' exhaustiveness.
