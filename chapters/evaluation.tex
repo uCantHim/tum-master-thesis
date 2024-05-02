@@ -1,0 +1,80 @@
+\chapter{Evaluation}
+
+\section{QEMU}
+
+For QEMU with an x86 guest as the primary evaluation target, we attempt to reproduce and detect bugs that were reported
+and fixed in the past. A search on the gitlab issue tracker yielded a total of 9 instruction-semantic related bug
+reports out of a total of 235 bug reports with a \texttt{target:i386} tag. It is notable how rare the specific type of
+bug on which Focaccia specializes is in mature emulators.
+
+We use minimal programs to reproduce these bugs, then run Focaccia on a version of QEMU that still contained the
+respective bug to see whether Focaccia can detect it. Not much more is to say about the methodology and setup as
+Focaccia facilitates the entire workflow out of the box: We only start a QEMU instance and execute one of Focaccia's
+scripts that connects to that instance and verifies it. These are the results:
+
+\begin{itemize}
+    \item 6 bugs were not detectable because the faulty instruction is not implemented by the symbolic execution
+        backend. In this case, Focaccia prints a warning and skips the instruction.
+    \item 1 bug was not detectable because the faulty instruction's malfunction caused QEMU to crash before Focaccia was
+        able to read its state.
+    \item 1 bug was detected successfully.
+    \item We were unable to reproduce one of the bugs entirely.
+\end{itemize}
+
+These results showcase the impact that reliance on a correct and complete symbolic execution backend has in a real-world
+scenario. The unimplemented instructions are so rare that errors in their implementation were only found and reported by
+a research project at KAIST in 2021, many years into both QEMU's and Miasm's widespread production use. However, a ratio
+of $\frac{1}{8}$ reproducible bugs detected is still lower than expected and indicates that the assumption of higher
+implementation correctness of symbolic execution tools than emulators might be unreasonable---at least if one aims to
+attain a deeper than superficial attestation of correctness.
+
+\subsubsection{Details}
+
+The unimplemented instructions are \texttt{ADDSUBPS} (SSE), \texttt{BZHI}, \texttt{BEXTR}, \texttt{BLSMSK},
+\texttt{BLSI/BLSR}, and \texttt{VPSHUFB} (AVX, which is entirely unsupported by the SE backend).
+
+The crashed case was the instruction \texttt{ADOX}. Note that the crash only happened when QEMU was executed with the
+\texttt{-g <port>} flag that enables its \texttt{gdbserver} interface, which is required for verification with Focaccia.
+This seems to have been another bug in QEMU that is not directly related to emulation.
+
+The bug that was successfully found by Focaccia is in the implementation of \texttt{CMPXCHG}, which was reported in
+gitlab issue \href{https://gitlab.com/qemu-project/qemu/-/issues/508}{\#508}. QEMU zero-extends \texttt{EAX} to
+\texttt{RAX}, even though it should not if the compared values are equal: In the test case, \texttt{RAX} should contain
+the unmodified value \texttt{0x1234567812345678} after \texttt{CMPXCHG} is executed, but QEMU sets it to
+\texttt{0x0000000012345678}. Focaccia's output to that instruction is shown in \lstlistingname~\ref{fig:cmpxchg}
+(wrapped to fit on the page).
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}
+----------------------------------------------------------------------
+For PC=0x40116a
+----------------------------------------------------------------------
+  1. [ERROR] Content of register RAX is false.
+     Expected value: 0x1234567812345678,
+     actual value in the translation: 0x12345678.
+
+Expected transformation: Symbolic state transformation 0x40116a -> 0x40116e:
+  [Symbols]
+    ZF     = (-@32[RBP + 0xFFFFFFFFFFFFFFEC]) == (-RAX[0:32])
+    RAX    = ((-@32[RBP + 0xFFFFFFFFFFFFFFEC]) == (-RAX[0:32]))
+             ?(RAX,{@32[RBP + 0xFFFFFFFFFFFFFFEC] 0 32, 0x0 32 64})
+    RIP    = 0x40116E
+    @32[RBP + 0xFFFFFFFFFFFFFFEC]
+           = ((-@32[RBP + 0xFFFFFFFFFFFFFFEC]) == (-RAX[0:32]))
+             ?(RDI[0:32],@32[RBP + 0xFFFFFFFFFFFFFFEC])
+  [Instructions]
+    CMPXCHG    DWORD PTR [RBP + 0xFFFFFFFFFFFFFFEC], EDI
+Actual difference: Snapshot (x86_64):
+                   {'RBP': '0x0', 'RAX': '0xedcba98800000000', 'RIP': '0x4'}
+    \end{lstlisting}
+    \end{tabular}
+    \caption{Verifier Output for Faulty \texttt{CMPXCHG} Instruction}\label{fig:cmpxchg}
+\end{figure}
+
+\section{Arancini}
+
+Support for most of the targets Arancini aims to support is currently not polished enough to be able to execute full
+programs. Additionally, logging is limited and severely restricts the calculations that Focaccia is able to perform;
+these statements are, of course, results in themselves.
