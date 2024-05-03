@@ -1,16 +1,43 @@
 \chapter{Evaluation}
 
-\section{QEMU}
+The primary evaluation target for Focaccia is QEMU with x86 as the guest architecture. Ideally, Focaccia would also be
+tested with Arancini, which was the initial motivation for this project. Unfortunately, support for most of the targets
+Arancini aims to support is not polished enough to be able to execute full programs at the time of writing.
+Additionally, its logging capabilities are severely limited and restrict the calculations that Focaccia is able to
+perform to a significant degree.
 
-For QEMU with an x86 guest as the primary evaluation target, we attempt to reproduce and detect bugs that were reported
-and fixed in the past. A search on the gitlab issue tracker yielded a total of 9 instruction-semantic related bug
-reports out of a total of 235 bug reports with a \texttt{target:i386} tag. It is notable how rare the specific type of
-bug on which Focaccia specializes is in mature emulators.
+To test Focaccia's functionality, we attempt to reproduce and detect bugs that were already reported, confirmed, and
+fixed so that we have a verifiable measure for success. A search on the gitlab issue tracker yields a total of 235 bug
+reports with a \texttt{target:i386} tag, nine of which are instruction semantics related bugs. It is noteworthy how rare
+this specific type of bug on which Focaccia specializes is in mature emulators.
 
-We use minimal programs to reproduce these bugs, then run Focaccia on a version of QEMU that still contained the
-respective bug to see whether Focaccia can detect it. Not much more is to say about the methodology and setup as
-Focaccia facilitates the entire workflow out of the box: We only start a QEMU instance and execute one of Focaccia's
-scripts that connects to that instance and verifies it. These are the results:
+\section{Setup}
+
+For each bug, we compile the newest version of QEMU that still contained the bug. We try to reproduce the bug with a
+minimal program, which is usually included in the bug report. If reproduction succeeds, we run Focaccia on the emulator
+with the same program and see if it detects the bug automatically.
+
+Not much is to be said about the concrete testing process because using Focaccia does not incur a lot of effort: We
+generate a symbolic trace, then start a QEMU instance with the GDB-stub active to provide an interface for Focaccia, and
+finally execute the verifier script that interfaces with a GDB server, feeding it the pre-computed symbolic oracle.
+\figurename~\ref{fig:testing_process} shows an example, where \texttt{bug.out} is the minimal reproducing program. Both
+Python programs that are being invoked are utilities provided by Focaccia.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tabular}{c}
+    \begin{lstlisting}[language=bash]
+        python capture_transforms.py -o oracle.trace bug.out
+        qemu-x86_64 -g 12345 bug.out &
+        python verify_qemu.py --symb-trace oracle.trace localhost 12345
+    \end{lstlisting}
+    \end{tabular}
+    \caption{Testing Process}\label{fig:testing_process}
+\end{figure}
+
+\section{Results}
+
+By performing the process described above for all nine bugs, we reach the following results:
 
 \begin{itemize}
     \item 6 bugs were not detectable because the faulty instruction is not implemented by the symbolic execution
@@ -22,11 +49,11 @@ scripts that connects to that instance and verifies it. These are the results:
 \end{itemize}
 
 These results showcase the impact that reliance on a correct and complete symbolic execution backend has in a real-world
-scenario. The unimplemented instructions are so rare that errors in their implementation were only found and reported by
-a research project at KAIST in 2021, many years into both QEMU's and Miasm's widespread production use. However, a ratio
-of $\frac{1}{8}$ reproducible bugs detected is still lower than expected and indicates that the assumption of higher
-implementation correctness of symbolic execution tools than emulators might be unreasonable---at least if one aims to
-attain a deeper than superficial attestation of correctness.
+scenario. The unimplemented instructions are so rare that errors in their implementation were only found and reported in
+2021, many years into both QEMU's and Miasm's widespread production use. However, a ratio of $\frac{1}{8}$ reproducible
+bugs detected is still lower than expected and indicates that the assumption of higher implementation correctness of
+symbolic execution tools than emulators might be unreasonable---at least if one aims to attain a deeper than superficial
+attestation of correctness. Possible actions are discussed in chapter~\ref{chapter:future_work}.
 
 \subsubsection{Details}
 
@@ -44,7 +71,7 @@ the unmodified value \texttt{0x1234567812345678} after \texttt{CMPXCHG} is execu
 \texttt{0x0000000012345678}. Focaccia's output to that instruction is shown in \lstlistingname~\ref{fig:cmpxchg}
 (wrapped to fit on the page).
 
-\begin{figure}[htbp]
+\begin{figure}[htb]
     \centering
     \begin{tabular}{c}
     \begin{lstlisting}
@@ -72,9 +99,3 @@ Actual difference: Snapshot (x86_64):
     \end{tabular}
     \caption{Verifier Output for Faulty \texttt{CMPXCHG} Instruction}\label{fig:cmpxchg}
 \end{figure}
-
-\section{Arancini}
-
-Support for most of the targets Arancini aims to support is currently not polished enough to be able to execute full
-programs. Additionally, logging is limited and severely restricts the calculations that Focaccia is able to perform;
-these statements are, of course, results in themselves.

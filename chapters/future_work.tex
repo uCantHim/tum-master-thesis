@@ -1,4 +1,4 @@
-\chapter{Future Work}
+\chapter{Future Work}\label{chapter:future_work}
 
 \section{The Oracle Problem}
 
@@ -7,11 +7,18 @@ instructions. The evaluation has shown that this approach is theoretically servi
 problems as those that it tries to solve: Implementing correct representations of instruction semantics is difficult and
 prone to mistake.
 
-One could look into a replacement strategy for symbolic execution, as that is currently Focaccia's strongest weakness.
-Section~\ref{sec:comparison} hinted towards a possible alternative: generate a small program that sets up processor and
-memory state, runs an instruction on it, and then reads back the result. It uses a hardware implementation as the
-oracle, which undergoes much more rigorous testing than a software emulator. One may be able to re-use the existing
-reproducer's mechanism (implemented by Alp Berkman on top of Focaccia), which performs pretty much exactly this task.
+A possible solution is to look for a more complete symbolic execution backend. Unfortunately, we decided early on in the
+development process that an abstraction layer for multiple interchangeable symbolic execution backends was not
+necessary. This is a misjudgement in hindsight and will incur some extra work to implement the mechanism now, though it
+is certainly still possible to do so.
+
+On the other hand, one could look into a replacement strategy for symbolic execution, as that is currently Focaccia's
+dominant weakness---a theoretically more sound approach to the oracle may be required. Section~\ref{sec:comparison}
+hints towards a possible alternative: generate a small program that sets up processor and memory state, runs an
+instruction on it, and then reads back the result. It uses a hardware implementation as the oracle, which undergoes much
+more rigorous testing than a software emulator, or may even be set forth as the \textbf{definition} of correctness,
+depending on context. One may be able to re-use the existing reproducer's mechanism (implemented by Alp Berkman on top
+of Focaccia), which performs pretty much exactly this task.
 
 \section{Environments}
 
@@ -22,5 +29,5 @@ difference's impact can improve the quality of verification results.
 \section{Systematic Test Case Generation}
 
 Focaccia is highly automatic, though still works on specific test cases, meaning the approach is not much more
-systematic than traditional unit testing---it merely works on a different level of program verification. Any technique
-that generates inputs to it systematically can drastically raise the tests' exhaustiveness.
+systematic than traditional unit testing---it merely tests the program on a different level. Any technique that
+generates inputs to it systematically can drastically raise the tests' exhaustiveness.
