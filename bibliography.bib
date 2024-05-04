@@ -460,3 +460,125 @@
     author={Intel},
     year={2023},
 }
+
+@Inbook{Fraser2019SoftwareTesting,
+  author="Fraser, Gordon
+  and Rojas, Jos{\'e} Miguel",
+  editor="Cha, Sungdeok
+  and Taylor, Richard N.
+  and Kang, Kyochul",
+  title="Software Testing",
+  bookTitle="Handbook of Software Engineering",
+  year="2019",
+  publisher="Springer International Publishing",
+  address="Cham",
+  pages="123--192",
+  abstract="Any nontrivial program contains some errors in the source code. These ``bugs'' are annoying for users if they lead to application crashes and data loss, and they are worrisome if they lead to privacy leaks and security exploits. The economic damage caused by software bugs can be huge, and when software controls safety critical systems such as automotive software, then bugs can kill people. The primary tool to reveal and eliminate bugs is software testing: Testing a program means executing it with a selected set of inputs and checking whether the program behaves in the expected way; if it does not, then a bug has been detected. The aim of testing is to find as many bugs as possible, but it is a difficult task as it is impossible to run all possible tests on a program. The challenge of being a good tester is thus to identify which are the best tests that help us find bugs, and to execute them as efficiently as possible. In this chapter, we explore different ways to measure how ``good'' a set of tests is, as well as techniques to generate good sets of tests.",
+  isbn="978-3-030-00262-6",
+  doi="10.1007/978-3-030-00262-6_4",
+  url="https://doi.org/10.1007/978-3-030-00262-6_4"
+}
+
+@article{Garousi+2016SoftwareTestingLitRev,
+  title = {A systematic literature review of literature reviews in software testing},
+  journal = {Information and Software Technology},
+  volume = {80},
+  pages = {195-216},
+  year = {2016},
+  issn = {0950-5849},
+  doi = {https://doi.org/10.1016/j.infsof.2016.09.002},
+  url = {https://www.sciencedirect.com/science/article/pii/S0950584916301446},
+  author = {Vahid Garousi and Mika V. Mäntylä},
+  keywords = {Secondary studies, Tertiary study, Software testing, Systematic mapping, Systematic literature reviews, Surveys},
+  abstract = {Context
+  Any newcomer or industrial practitioner is likely to experience difficulties in digesting large volumes of knowledge in software testing. In an ideal world, all knowledge used in industry, education and research should be based on high-quality evidence. Since no decision should be made based on a single study, secondary studies become essential in presenting the evidence. According to our search, over 101 secondary studies have been published in the area of software testing since 1994. With this high number of secondary studies, it is important to conduct a review in this area to provide an overview of the research landscape in this area.
+  Objective
+  The goal of this study is to systematically map (classify) the secondary studies in software testing. We propose that tertiary studies can serve as summarizing indexes which facilitate finding the most relevant information from secondary studies and thus supporting evidence-based decision making in any given area of software engineering. Our research questions (RQs) investigate: (1) Software-testing-specific areas, (2) Types of RQs investigated, (3) Numbers and Trends, and (4) Citations of the secondary studies.
+  Method
+  To conduct the tertiary study, we use the systematic-mapping approach. Additionally, we contrast the testing topics to the number of Google hits to address a general popularity of a testing topic and study the most popular papers in terms of citations. We furthermore demonstrate the practicality and usefulness of our results by mapping them to ISTQB foundation syllabus and to SWEBOK to provide implications for practitioners, testing educators, and researchers.
+  Results
+  After a systematic search and voting process, our study pool included 101 secondary studies in the area of software testing between 1994 and 2015. Among our results are the following: (1) In terms of number of secondary studies, model-based approach is the most popular testing method, web services are the most popular system under test (SUT), while regression testing is the most popular testing phase; (2) The quality of secondary studies, as measured by a criteria set established in the community, is slowly increasing as the years go by; and (3) Analysis of research questions, raised and studied in the pool of secondary studies, showed that there is a lack of ‘causality’ and ‘relationship’ type of research questions, a situation which needs to be improved if we, as a community, want to advance as a scientific field. (4) Among secondary studies, we found that regular surveys receive significantly more citations than SMs (p=0.009) and SLRs (p=0.014).
+  Conclusion
+  Despite the large number of secondary studies, we found that many important areas of software testing currently lack secondary studies, e.g., test management, role of product risk in testing, human factors in software testing, beta-testing (A/B-testing), exploratory testing, testability, test stopping criteria, and test-environment development. Having secondary studies in those areas is important for satisfying industrial and educational needs in software testing. On the other hand, education material of ISTQB foundation syllabus and SWEBOK could benefit from the inclusion of the latest research topics, namely search-based testing, use of cloud-computing for testing and symbolic execution.}
+}
+
+@inproceedings{Martignoni+2009TestingCpuEmulators,
+  author = {Martignoni, Lorenzo and Paleari, Roberto and Roglia, Giampaolo Fresi and Bruschi, Danilo},
+  title = {Testing CPU emulators},
+  year = {2009},
+  isbn = {9781605583389},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/1572272.1572303},
+  doi = {10.1145/1572272.1572303},
+  abstract = {A CPU emulator is a software that simulates a hardware CPU. Emulators are widely used by computer scientists for various kind of activities (e.g., debugging, profiling, and malware analysis). Although no theoretical limitation prevents to develop an emulator that faithfully emulates a physical CPU, writing a fully featured emulator is a very challenging and error-prone task. Modern CISC architectures have a very rich instruction set, some instructions lack proper specifications, and others may have undefined effects in corner-cases. This paper presents a testing methodology specific for CPU emulators, based on fuzzing. The emulator is "stressed" with specially crafted test-cases, to verify whether the CPU is properly emulated or not. Improper behaviours of the emulator are detected by running the same test-case concurrently on the emulated and on the physical CPUs and by comparing the state of the two after the execution. Differences in the final state testify defects in the code of the emulator. We implemented this methodology in a prototype (codenamed EmuFuzzer), analysed four state-of-the-art IA-32 emulators (QEMU, Valgrind, Pin and BOCHS), and found several defects in each of them, some of which can prevent the proper execution of programs.},
+  booktitle = {Proceedings of the Eighteenth International Symposium on Software Testing and Analysis},
+  pages = {261–272},
+  numpages = {12},
+  keywords = {automatic test generation, emulation, fuzzing, software testing},
+  location = {Chicago, IL, USA},
+  series = {ISSTA '09}
+}
+
+@inproceedings{Ma+2010PrototypingAndTestingEmulators,
+  author={Ma, Weiqin and Forin, Alessandro and Liu, Jyh-Charn},
+  booktitle={Proceedings of 2010 21st IEEE International Symposium on Rapid System Protyping},
+  title={Rapid prototyping and compact testing of CPU emulators},
+  year={2010},
+  volume={},
+  number={},
+  pages={1-7},
+  keywords={Registers;Testing;Manuals;Routing;Generators;Hardware;Software;Microprocessors;Simulation software;Testing},
+  doi={10.1109/RSP.2010.5656339}
+}
+
+@article{Martignoni+2012PokeEmu,
+  author = {Martignoni, Lorenzo and McCamant, Stephen and Poosankam, Pongsin and Song, Dawn and Maniatis, Petros},
+  title = {Path-exploration lifting: hi-fi tests for lo-fi emulators},
+  year = {2012},
+  issue_date = {March 2012},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {40},
+  number = {1},
+  issn = {0163-5964},
+  url = {https://doi.org/10.1145/2189750.2151012},
+  doi = {10.1145/2189750.2151012},
+  abstract = {Processor emulators are widely used to provide isolation and instrumentation of binary software. However they have proved difficult to implement correctly: processor specifications have many corner cases that are not exercised by common workloads. It is untenable to base other system security properties on the correctness of emulators that have received only ad-hoc testing. To obtain emulators that are worthy of the required trust, we propose a technique to explore a high-fidelity emulator with symbolic execution, and then lift those test cases to test a lower-fidelity emulator. The high-fidelity emulator serves as a proxy for the hardware specification, but we can also further validate by running the tests on real hardware. We implement our approach and apply it to generate about 610,000 test cases; for about 95\% of the instructions we achieve complete path coverage. The tests reveal thousands of individual differences; we analyze those differences to shed light on a number of root causes, such as atomicity violations and missing security features.},
+  journal = {SIGARCH Comput. Archit. News},
+  month = {mar},
+  pages = {337–348},
+  numpages = {12},
+  keywords = {CPU emulators, cross validation, symbolic binary execution}
+}
+
+
+@inproceedings{Kim+2017TestBinaryLifters,
+  author={Kim, Soomin and Faerevaag, Markus and Jung, Minkyu and Jung, Seungll and Oh, DongYeop and Lee, JongHyup and Cha, Sang Kil},
+  booktitle={2017 32nd IEEE/ACM International Conference on Automated Software Engineering (ASE)},
+  title={Testing intermediate representations for binary analysis},
+  year={2017},
+  volume={},
+  number={},
+  pages={353-364},
+  keywords={Semantics;Computer bugs;Binary codes;Testing;Tools;Software;C++ languages},
+  doi={10.1109/ASE.2017.8115648}
+}
+
+@inproceedings{Dasgupta+2020CompLifter,
+  author = {Dasgupta, Sandeep and Dinesh, Sushant and Venkatesh, Deepan and Adve, Vikram S. and Fletcher, Christopher W.},
+  title = {Scalable validation of binary lifters},
+  year = {2020},
+  isbn = {9781450376136},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3385412.3385964},
+  doi = {10.1145/3385412.3385964},
+  abstract = {Validating the correctness of binary lifters is pivotal to gain trust in binary analysis, especially when used in scenarios where correctness is important. Existing approaches focus on validating the correctness of lifting instructions or basic blocks in isolation and do not scale to full programs. In this work, we show that formal translation validation of single instructions for a complex ISA like x86-64 is not only practical, but can be used as a building block for scalable full-program validation. Our work is the first to do translation validation of single instructions on an architecture as extensive as x86-64, uses the most precise formal semantics available, and has the widest coverage in terms of the number of instructions tested for correctness. Next, we develop a novel technique that uses validated instructions to enable program-level validation, without resorting to performance-heavy semantic equivalence checking. Specifically, we compose the validated IR sequences using a tool we develop called Compositional Lifter to create a reference standard. The semantic equivalence check between the reference and the lifter output is then reduced to a graph-isomorphism check through the use of semantic preserving transformations. The translation validation of instructions in isolation revealed 29 new bugs in McSema – a mature open-source lifter from x86-64 to LLVM IR. Towards the validation of full programs, our approach was able to prove the translational correctness of 2254/2348 functions taken from LLVM’s single-source benchmark test-suite.},
+  booktitle = {Proceedings of the 41st ACM SIGPLAN Conference on Programming Language Design and Implementation},
+  pages = {655–671},
+  numpages = {17},
+  keywords = {x86-64, Translation Validation, LLVM IR, Graph Isomorphism, Formal Semantics, Compiler Optimizations},
+  location = {London, UK},
+  series = {PLDI 2020}
+}

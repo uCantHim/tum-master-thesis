@@ -1,0 +1,31 @@
+\chapter{Related Work}
+
+Software testing in general naturally encompasses a giant body of research~\cite{Daka+2014UnitTestingSurvey,
+Fraser2019SoftwareTesting, Garousi+2016SoftwareTestingLitRev} and has already been mentioned in
+chapter~\ref{chapter:overview}. Focaccia, however, focuses specifically on testing emulators, which is a much smaller
+field of research.
+
+\subsubsection{Verification of Emulators}
+
+A 2009 work dubbed \textit{EmuFuzzer}~\cite{Martignoni+2009TestingCpuEmulators} explores a similar approach to that of
+Focaccia, but uses execution on a physical CPU as the oracle. It combines this approach with an automated, systematic
+fuzzing-based test case generator.
+
+Ma, Forin, and Liu describe an approach where technical \ac{ISA} and CPU specifications are mined to generate test cases
+automatically, which are then run against a hardware oracle~\cite{Ma+2010PrototypingAndTestingEmulators}.
+
+\textit{PokeEMU} is a systematic framework for high-coverage testing and cross-validation of processor
+emulators~\cite{Martignoni+2012PokeEmu}. It uses symbolic execution to extract semantical representations of instruction
+behaviour from a `high-fidelity' emulator (one that models real CPU behaviour faithfully on a low level) to verify
+`low-fidelity' emulators (ones that employ complex strategies to model instructions on a high level, but not the CPU
+itself).
+
+\subsubsection{Binary Translation in General}
+
+A subset of any binary translation process is to lift assembly to an intermediate representation that represents the
+lifted instructions' semantics accurately. A 2017 paper implements \textit{MeanDiff}, a systematic testing method for
+binary lifters~\cite{Kim+2017TestBinaryLifters}. It detects bugs by collecting \ac{IR}s from multiple independent binary
+lifters and formally testing for syntactical equivalence among them.
+
+Another formal approach called a \textit{Compositional Lifter} composes validated IR sequences to prove binary lifting
+correctness for entire programs~\cite{Dasgupta+2020CompLifter}.
