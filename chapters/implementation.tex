@@ -237,3 +237,11 @@ This shows that branch-based trace mismatches are not a rare phenomenon.
     \caption{Comparison of auxiliary vectors in native execution and QEMU}
     \label{fig:auxv_comparison}
 \end{figure}
+
+\subsection{Extending to Other Architectures}
+
+As Focaccia deals in \textbf{program states} rather than instructions, the only thing necessary to support more
+architectures than the currently supported x86 is to define a list of an architecture's registers. Focaccia has a
+built-in mechanism to define subsets of registers (e.g. \texttt{EAX = RAX[0:32]}) as well as state flags. Peripheral
+tools such as communication with \texttt{LLDB} or \texttt{GDB} may need to be implemented for specific architectures as
+well, depending on the consistency of those tools' interfaces.
