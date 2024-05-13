@@ -15,9 +15,10 @@ tool. This has merit: A single, isolated source of definitions for instruction s
 correctly and reliably to validate any other binary translator. Formal verification methods may be able to accomplish
 this, after which Focaccia can apply their results to any other binary translation tool.
 
-A clear deficiency of our method is that it is not systematic: It works on specific instantiations of test cases, i.e.,
-executions of programs. For each run, each executed instruction is tested for exactly one concrete operand value.
-Generation of test cases must be systematic to maximize the verification's exhaustiveness.
+A clear deficiency of our method is that it is not systematic with respect to program inputs: It works on specific
+instantiations of test cases, i.e., executions of programs. For each run, each executed instruction is tested for
+exactly one concrete operand value. Generation of test cases must be systematic to maximize the verification's
+exhaustiveness.
 \\
 
 Focaccia's source code resides at

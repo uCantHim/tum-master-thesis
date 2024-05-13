@@ -3,25 +3,23 @@
 
 \chapter{Introduction}\label{chapter:introduction}
 
-\section{Motivation}
-
+% Motivation
 In the development process of a binary translator, Arancini, we observed that, as is the case with all large-scale
 software projects, its growing complexity started to hinder maintainability and progress. A particular difficulty
-specific to an emulator's problem domain is the fact that both input- and output data are binary---that is,
+specific to the problem domain of binary translators is the fact that both input- and output data are binary---that is,
 non-human-readable data, which poses significant difficulties during debugging in the development cycle. The most
 logical way of dealing with binary data is to process it programmatically: our initial hypothesis is that automated
-testing tools could partially alleviate these restrictions of human cognition and facilitate development efficiency.
+testing tools could partially alleviate restrictions of human cognition and facilitate development efficiency.
 
-\section{Focaccia}\label{sec:intro:focaccia}
+% Necessity
+Most of the current software testing approaches, from unit testing to formal verification, rely heavily on manual work,
+which is time consuming and prone to mistakes.
 
-Focaccia verifies emulator correctness automatically. It traces an emulator's state at instruction-level granularity
-during program execution and compares it to an oracle-based truth state, thereby establishing whether instruction
-implementations act on program state in accordance with their specified semantics. Focaccia computes these test truths
-itself by utilizing symbolic execution technology to implement said oracle.
-
-\section{Challenges}\label{sec:intro:challenges}
-
-List of stuff we do
-
-
-Think about the ordering of sections in Design
+% Overview - what is Focaccia and how does it work?
+This thesis designs and implements an automatic verifier for emulators: \textit{Focaccia}. It traces an emulated program
+execution at instruction-level granularity and predicts for each instruction the program state that it \textbf{should}
+produce based on the current emulator state and compares it to the state the emulator actually produces, thereby
+establishing whether the emulator's implementation of an instruction acts on program state in accordance with its
+specified semantics. To predict program states, Focaccia implements an oracle by harnessing concolic execution.
+Additionally, this verifier is designed to be practical and usable with minimal setup work; specifically, it is a
+standalone tool that does not require tight integration into an emulator's code base.

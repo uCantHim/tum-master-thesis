@@ -30,4 +30,7 @@ difference's impact can improve the quality of verification results.
 
 Focaccia is highly automatic, though still works on specific test cases, meaning the approach is not much more
 systematic than traditional unit testing---it merely tests the program on a different level. Any technique that
-generates inputs to it systematically can drastically raise the tests' exhaustiveness.
+generates inputs to it systematically can drastically raise the tests' exhaustiveness. The reproducer mentioned above
+could again find use here: It can be extended to generate not only one minimal reproducing program for each bug that
+Focaccia finds (which is its current purpose), but systematically explore the range of inputs to the faulty instruction
+and generate exhaustive test cases/programs for it.

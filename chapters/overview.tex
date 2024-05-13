@@ -3,13 +3,13 @@
 The value of binary translation technologies has been firmly established~\cite{altman2000welcome, sites1993binary,
 probst2002dynamic}. These are large programs that additionally deal in an inherently complex problem domain, causing
 their development to be accordingly difficult. We want to aid this endeavour by \textbf{testing} binary translators,
-particularly emulators and dynamic binary translators---the latter being essentially an optimization of the former.
+particularly dynamic binary translators (emulators).
 
 Testing means to evaluate whether a system meets its originally specified requirements~\cite{jamil2016software_testing}.
-Possible specification requirements for emulators might be performance or feature size, but the specific ubiquitous
-requirement for emulators (and really any software) that we want to test for is \textit{correctness}. As formalized in
-section~\ref{sec:definitions}, the fundamental definition of correctness for binary translators is semantic equivalence
-between input- and output programs, that is, of the translated program and the translation.
+Possible specification requirements for emulators might be performance or size of feature set, but the specific
+ubiquitous requirement for emulators (and really any software) that we want to test for is \textit{correctness}. As
+formalized in section~\ref{sec:definitions}, the fundamental definition of correctness for binary translators is
+semantic equivalence between input- and output programs, that is, of the translated program and the translation.
 
 % Traditional approach and its problems
 The traditional and most widely used way to test software, called unit testing, requires developers to divide the tested
@@ -30,10 +30,9 @@ and popular, though it carries with it significant shortcomings and difficulties
 
 % How exactly our task is particularly difficult
 Many of these problems are amplified by the complexity of an emulator's domain, where the test development procedure
-could look like the following: We utilise the local discreteness property of the emulator (see
-section~\ref{sec:definitions}) and write test cases for each instruction for each ISA that the emulator supports. We let
+could look like the following: We write test cases for each instruction for each ISA that the emulator supports. We let
 the emulator simulate an instruction for a number of different operands, which we obtain by thinking about classes of
-equivalent values and choosing an exhaustive list of representatives and corner cases, and check for each
+equivalent values and choosing an exhaustive list of representatives and corner cases. Then we check for each
 instruction-operand-combination whether the emulator's state after the instruction has been executed is equal to the
 state that we would expect it to reach, which we have calculated manually based on our understanding of the respective
 instruction's semantics.
@@ -42,7 +41,7 @@ The issues at every step of this approach are glaring: Expected test truths can 
 same developer that implemented the translation also writes the test and thus applies their own faulty understanding of
 how the instruction should operate to it. Further, complex architectures like x86 can have, in addition to a vast number
 of different instructions, a gigantic number of possible instruction-operand combinations for each instruction which is
-unlikely to be exhausted in manually written tests; additionally, corner cases for inputs are hard to identify, the
+unlikely to be exhausted in manually written tests. Additionally, corner cases for inputs are hard to identify, the
 process is excessively time consuming, and, more important than is often admitted: developers don't want to go through
 all of this effort---and hence frequently just don't.
 
@@ -65,8 +64,8 @@ occurrence of test cases: native programs.
 % What does it do?
 Focaccia implements an automatic verifier for emulators. The algorithm detects errors in an emulator's implementation by
 comparing its simulated program state with a \textit{truth state} for which it implements an oracle that calculates
-expected program states that should result from executing instructions correctly. It accomplishes this by employing
-symbolic execution techniques to capture instructions' true semantics.
+expected program states which should result from executing instructions correctly. It accomplishes this by employing
+symbolic execution to capture instructions' true semantics.
 
 % How does it do what it does?
 The primary emulator verification algorithm requires as inputs:
@@ -74,7 +73,7 @@ The primary emulator verification algorithm requires as inputs:
 \begin{itemize}
     \item A concrete test trace, which is a trace of the program's execution via the tested emulator. It comprises a
         list of instructions executed and corresponding program state snapshots at each instruction, meaning the
-        process's register- and memory contents.
+        emulated process's register- and memory contents.
     \item A symbolic reference trace. This is the oracle, and it is computed by Focaccia. It is a trace of the same
         program, but, instead of program state snapshots, it defines symbolic equations that encapsulate the
         corresponding instruction's \textit{correct} behaviour.
@@ -89,13 +88,12 @@ emulator's faulty state at that point, and the correct transformation that was e
 
 % How to use it?
 Focaccia is a command-line invocable program with a few helper tools. It takes as input a source of a concrete trace and
-a source of a symbolic trace. The former is usually an emulator's log (see section~\ref{sec:obtaining_snapshots} for
-details on this matter). The latter is usually the traced program from which the verifier will generate the symbolic
-trace. Data from these sources are used to compute the comparison described above and finally print a summary of the
-results. Pre-computing symbolic traces for a program and exporting them to a file that can later be fed to the main
-program for verification is also possible. Additionally, we include a helper script that records concrete traces in the
-form of efficient minimal program snapshots from emulators that provide a \texttt{gdbserver}
-interface~\cite{Sourceware2024GdbRemoteProtocol} (QEMU, for example).
+a source of a symbolic trace. The former is usually an emulator's log. The latter is usually the traced program from
+which the verifier will generate the symbolic trace. Data from these sources are used to compute the comparison
+described above and finally print a summary of the results. Pre-computing symbolic traces for a program and exporting
+them to a file that can later be fed to the main program for verification is also possible. Additionally, we include a
+helper script that records concrete traces in the form of efficient minimal program snapshots from emulators that
+provide a \texttt{gdbserver} interface~\cite{Sourceware2024GdbRemoteProtocol} (QEMU, for example).
 
 \section{Focaccia's Position in the Software Testing Landscape}\label{sec:testing}
 

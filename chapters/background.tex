@@ -12,12 +12,22 @@ code. Statements like "Assertion X can never fail", "For all $Y > 5$, path A tak
 never dereferences a \texttt{nullptr}" can be proven with formal certainty.
 
 \lstlistingname~\ref{fig:symbexec_example_listing} shows a code example. In a usual \textit{concrete} execution,
-\texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example, we set
-\texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}. If, on
-the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol $\alpha$, a symbolic
-execution engine produces the following output: \texttt{a = $\alpha$}, \texttt{b = $\alpha$ - 5}, \texttt{c =
-((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}. The entire program is expressed depending on the generic symbol
-$\alpha$.
+variable \texttt{a} is exactly one value and subsequent code uses that value to perform calculations. If, for example,
+we set \texttt{a = 4}, the program calculates the following values: \texttt{a = 4}, \texttt{b = -1}, \texttt{c = -3}.
+If, on the other hand, in a symbolic execution of the same code, \texttt{a} is set to a generic symbol $\alpha$, a
+symbolic execution engine produces the following output:
+\\
+
+\begin{adjustwidth}{3em}{0em}
+\texttt{a = $\alpha$}
+\\
+\texttt{b = $\alpha$ - 5}
+\\
+\texttt{c = ((($\alpha$ - 5) \% 3) == 0) ? ($\alpha$ + 10) : (-3)}.
+\\
+\end{adjustwidth}
+
+Using theorem provers, one can now make general assertions about the equations.
 
 \begin{figure}[htbp]
     \centering
@@ -49,7 +59,7 @@ programs, finding appropriate models for symbolic memory (similar to King's arra
 effects of library and system code, symbolic execution can still be used effectively when applied to reasonably
 restricted scenarios or when enhanced with advanced heuristic approaches~\cite{Baldoni2018SymbexecSurvey}.
 \textit{Concolic execution}~\cite{Sen+2005Cute, Sen2007ConcolicTesting}, in which symbolic execution is selectively
-guided by concrete state to avoid combinatory explosions while still achieving reasonably exhaustive results, is one of
+guided by concrete state to avoid combinatorial explosions while still achieving reasonably exhaustive results, is one of
 these more recent developments. Focaccia's algorithm is a customized variant of this concept.
 
 % "Symbolic execution is a popular program analysis technique introduced in the mid ’70s to test whether certain
@@ -67,24 +77,24 @@ these more recent developments. Focaccia's algorithm is a customized variant of 
 
 The idea of binary translation arises when one considers the reality of multiple conflicting instruction set
 architectures in the world and the desire or even necessity to execute programs on all of them. The natural way to
-accomplish this is to compile a program for each of the targeted architectures, resulting in \textit{native} executables
-for each, which also makes this approach generate the most efficient form of program execution as it incurs no runtime
-overhead at all. This works for entirely self-contained programs, but programs tend to depend upon third-party software
-of which the source code might not be available at all or may perform architecture-specific work so that it is not
-trivially adaptable to different architectures. Additionally, recompilation and the distribution of multiple binaries
-associated with it is inconvenient and also costly for very large projects.
+accomplish this is to compile a program for each target architecture, resulting in \textit{native} executables for each,
+which also makes this approach generate the most efficient form of program execution as it incurs no runtime overhead at
+all. This works for entirely self-contained programs, but programs tend to depend upon third-party software of which the
+source code might not be available at all or may perform architecture-specific work so that it is not trivially
+adaptable to different architectures. Additionally, recompilation and the distribution of multiple binaries associated
+with it is inconvenient and also costly for very large projects.
 
 Other approaches, which trade off different parts of the aforementioned pros and cons, can be assigned to the rough
 categories of microcoded emulators, software interpreters, and binary translators~\cite{sites1993binary}. The first one
 is concerned with supporting multiple \ac{ISA}s \textbf{in hardware} by translating their instructions to a common
-microcode language; this issue shall not trouble us here. The latter two are software solutions, also known as dynamic
-binary translation and static binary translation, respectively~\cite{cifuentes1996staticdynamic, Rocha2022Lasagne}.
-Static binary translation takes as input binary code of one \ac{ISA} and compiles it to a different \ac{ISA} in an
-offline process ahead of time. It may include a runtime component that maps operating system calls to the target
-platform. Static translation cannot deal self-modifying code, but incurs little runtime overhead. Dynamic binary
-translation, on the other hand, acts in the spirit of an interpreter by translating a binary on the fly during its
-execution. It handles dynamic branching without problems, but its runtime overhead is higher because of the continually
-running interpreter, and optimization options for generated code are severely limited by its narrow, local view of the
-executed code, even though many optimization techniques have been developed over the
+microcode language; this issue shall not trouble us here. The latter two are software solutions. Binary translation is
+further divided into static binary translation and dynamic binary translation~\cite{cifuentes1996staticdynamic,
+Rocha2022Lasagne}. Static binary translation takes as input binary code of one \ac{ISA} and compiles it to a different
+\ac{ISA} in an offline process ahead of time. It may include a runtime component that maps operating system calls to the
+target platform. Static translation cannot deal with dynamic branching, self-modifying code, and many other
+restrictions, but incurs little runtime overhead. Dynamic binary translation, on the other hand, acts in the spirit of
+an interpreter by translating a binary on the fly during its execution. It handles dynamic branching without problems,
+but its runtime overhead is higher and optimization options for generated code are severely limited by its narrow, local
+view of the executed code---though many optimization techniques have been developed over the
 years~\cite{Guan+2010DbtOptimizations, Sun+2023DbtBranchPred, Hawkins2015OptimizingDbt, Kedia+2013DbtKernel}. Programs
 that perform dynamic binary translation are frequently called \textit{emulators}.

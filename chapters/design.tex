@@ -49,10 +49,9 @@ Attempts to solve this equivalence directly bear the following problems:
     \item We need to find $x$. Usually, an \ac{ISA} does not have a canonical way to represent its instructions as
         manipulable functions.
     \item We need to find $E_{X \rightarrow Y}(x)$.
-    \item We need to determine when $x \equiv y$.
-    \item Comparing $x \equiv y$ is not enough, even if it were feasible, because the translation $E_{X \rightarrow
-        Y}(x) = (y_j)_{1 \leq j \leq m} \in \mathcal{P}_Y$ may be a series of \textbf{multiple} instructions in $Y$, so
-        the true question expands to: When is $x \equiv (y_j)$?
+    \item Determining when $x \equiv y$ is not enough, even if it were feasible, because the translation $E_{X
+        \rightarrow Y}(x) = (y_j)_{1 \leq j \leq m} \in \mathcal{P}_Y$ may be a series of \textbf{multiple} instructions
+        in $Y$, so the true question is: When is $x \equiv (y_j)$?
 \end{enumerate}
 
 Theorem solvers that can tackle problems 3 and 4 exist; an example is Microsoft's Z3 theorem
@@ -68,15 +67,19 @@ emulator's \textbf{state} rather than its action on states, which is doublessly 
 reduces to:
 
 \begin{enumerate}
-    \item We need to find $S = x(S_0)$. We call $S$ the \textit{truth state}: it is the state that results when an
-        instruction $x$ is correctly applied to an initial program state $S_0$.
-    \item We need to find $S^E = [E_{X \rightarrow Y}(x)](S_0)$. We call $S^E$ the \textit{test state}; it is obtained
-        by executing the translation of $x$ on an initial program state $S_0$. Section~\ref{sec:obtaining_snapshots} is
-        concerned with this task.
+
+    \item We need to find $S' = x(S)$. We call $S'$ the \textit{truth state}: it is the state that results when an
+        instruction $x$ is correctly applied to an initial program state $S$.
+
+    \item We need to find $S^E = [E_{X \rightarrow Y}(x)](S)$. We call $S^E$ the \textit{test state}; it is obtained by
+        executing the translation of $x$ on the same initial program state $S$ as the one from which $S'$ is computed.
+        Section~\ref{sec:obtaining_snapshots} is concerned with this task.
+
     \item We need to determine when $S = S^E$. As program states $S$ are constants, their equality is theoretically
         trivial. Practically, however, the respective initial states of the native program and the translated program
         are often not precisely equal. Therefore we implement an equivalence operator $S \equiv S^E$ which represents an
         equality with respect to differing start states. Section~\ref{sec:comparison} explores this situation in detail.
+
 \end{enumerate}
 
 \subsection{Local Discreteness}\label{sec:local_discreteness}
@@ -89,7 +92,7 @@ preferred in every case. Otherwise, as long as a pratical replacement for these 
 divide-and-conquer approach is inevitably necessary to break this monolithic problem open into manageable subunits:
 equation~\ref{eq:local_to_global_discreteness} enables this.
 
-However, when we use the definition of semantical program equivalence to transform the problem from $P_X \equiv E_{X
+However, when we use the definition of semantic program equivalence to transform the problem from $P_X \equiv E_{X
 \rightarrow Y}(P_X)$ to $P_X(S) = [E_{X \rightarrow Y}(P_X)](S)$, the global comparison of result states becomes
 possible again.  While this removes the theoretical necessity for the local discreteness assumption, it is still
 practically useful, if not essential. An outcome of comparing result states of full program executions would be a
@@ -112,16 +115,16 @@ $(S_1, S_2, …)$ and $(S^E_1, S^E_2, …)$, $S_i$ and $S^E_i$ defined as above.
 test whether $S_i = S^E_i$. If this equality does \textbf{not} hold, then $x_i \not\equiv E_{X \rightarrow Y}(x_i)$,
 meaning the translator's implementation of $x_i$ is faulty.
 
+Note that it is indeed valid to assume an emulator's implementation to be locally discrete because it is not only by far
+the most feasible strategy to implement any binary translator (at least disregarding optimization strategies), but also
+the core axiom of dynamic binary translation itself: an emulator is \textbf{defined} as an online interpreter that
+operates with only a local view on the program.
+
 \begin{figure}[htpb]
     \centering
     \includegraphics[width=0.6\linewidth]{figures/naive_algo.png}
     \caption{A naive verification algorithm}\label{fig:naive_algo}
 \end{figure}
-
-Note that it is indeed valid to assume an emulator's implementation to be locally discrete because it is not only by far
-the most feasible strategy to implement any binary translator (at least disregarding optimization strategies), but also
-the core axiom of dynamic binary translation itself: an emulator is \textbf{defined} as an online interpreter that
-operates with only a local view on the program.
 
 \subsection{Comparing Program States}\label{sec:comparison}
 
@@ -180,7 +183,7 @@ apply to the states we want to test. Section~\ref{sec:symb_exec} explains how th
 
 Another way to approach this issue would be not to adapt the algorithm to the environment but to adapt the environment
 to the algorithm: manually set up environments for both the concrete and the emulated execution. This is a potential
-topic for further research and relates to container technology, though it may not be feasible in all contexts.
+topic for further research and relates to containers, though it may not be feasible in all contexts.
 Section~\ref{sec:auxv} gives an example of how environmental differences are notorious.
 
 % Explanation of the comparison algorithm from Overview, from which I had to remove all math:
@@ -401,7 +404,7 @@ single-instruction symbolic trace generated from a concrete execution of the sam
 ranges from instruction \texttt{0x401032} through \texttt{0x401043}. The second basic block starts at \texttt{0x401048},
 etc.
 
-\begin{figure}[htpb]
+\begin{figure}[htb]
     \centering
     \includegraphics[width=0.5\linewidth]{figures/trace_diff_view.png}
     \caption{Different Program Trace Granularities}\label{fig:trace_granularity}
@@ -444,7 +447,7 @@ methods are discussed in section~\ref{sec:recording_state}.
 The final principal task, now that Focaccia can produce entire symbolic program traces, is to gather snapshots of the
 tested emulator's concrete state such that symbolic expressions can calculate truth states from them, they can be
 compared to these truth states, and to do so efficiently enough so that this part does not become a bottleneck for the
-entire verifier. The latter part, in particular, turned out to be surprisingly challenging.
+entire verifier. The latter part in particular turned out to be surprisingly challenging.
 
 \subsubsection{What is Program State?}
 
@@ -462,26 +465,27 @@ was severely restricted in that Arancini exclusively wrote register values to th
 is always a challenge for static, non-interactive communication paths like log files as their size can easily blow out
 of proportion for even moderately sized programs when the emulator dumps \textit{all} memory to disk at every
 instruction. Additionally, almost all memory is never touched by each given instruction (a typical non-vector
-instruction addresses 16 bytes of memory at most) and is thus not strictly required by the verifier.
+instruction addresses 16 unique bytes of memory at most) and is thus not strictly required by the verifier.
 
-The fact is that Focaccia will always have to deal with incomplete snapshots and missing information from input data.
-Whether this is because of faults in the emulator, restricted communication interfaces, or incomplete format conversion
-implementations: the reason is outside of our control and one cannot create information, therefore, we always have to
-deal with its absence. From this insight, we derived a key architectural principle for the verifier: It must not assume
-the presence of any information, fail gracefully if key information is indeed missing, and, most importantly, scale the
-quality of its calculations incrementally with more information.
+% TODO: Maybe move this somewhere else or drop it
+%The fact is that Focaccia will always have to deal with incomplete snapshots and missing information from input data.
+%Whether this is because of faults in the emulator, restricted communication interfaces, or incomplete format conversion
+%implementations: the reason is outside of our control and one cannot create information, therefore, we always have to
+%deal with its absence. From this insight, we derived a key architectural principle for the verifier: It must not assume
+%the presence of any information, fail gracefully if key information is indeed missing, and, most importantly, scale the
+%quality of its calculations incrementally with more information.
 
-But back to the matter at hand: Log files are a well decoupled solution that only requires a single parsing function to
-be implemented to support a new emulator. On the other hand, dumping memory to files in a large-scale fashion is very
-costly and the emulator has to \textbf{support} dumping memory to logs in the first place. Our major evaluation target,
-QEMU, does not. Another more memory-efficient approach is an online debugging interface, such as the one QEMU provides
-by implementing the \texttt{gdbserver} protocol. This method is less intrusive to Focaccia (in fact, it demands no
-modification of Focaccia at all to interface with new emulators) but moves some of the effort to the side of the
-emulator, at which the responsibility lies to implement said protocol.
+Log files are a well decoupled solution that only requires a single parsing function to be implemented to support a new
+emulator. On the other hand, dumping memory to files in a large-scale fashion is very costly and the emulator has to
+\textbf{support} dumping memory to logs in the first place. Our major evaluation target, QEMU, does not. Another more
+memory-efficient approach is an online debugging interface, such as the one QEMU provides by implementing the
+\texttt{gdbserver} protocol. This method is less intrusive to Focaccia (in fact, it demands no modification of Focaccia
+at all to interface with new emulators) but moves some of the effort to the side of the emulator, at which the
+responsibility lies to implement said protocol.
 
 \subsubsection{Recording QEMU State}
 
-QEMU is an explicit evaluation target of Focaccia. QEMU has extensive options for logging output, but it cannot write
+QEMU is an explicit evaluation target of Focaccia. It has extensive options for logging output, but it cannot write
 memory to the log. Additionally, even though logging can output memory mapping informations, QEMU's
 \texttt{gdbserver}-based remote debugging interface can not, so that there is no obvious way to know which memory
 addresses exactly to include in the snapshot. The result was a rather inventive first iteration of a customized
@@ -496,11 +500,11 @@ snapshotting system for QEMU, for which \figurename~\ref{fig:qemu_naive_recordin
 The snapshot recorder is an algorithm that does multiple things. First, it starts an instance of QEMU, passing to it
 several options that enable logging and the \texttt{gdbserver} stub, which makes QEMU wait before the first instruction
 until a connected GDB instance instructs it to start execution. The script then connects to the GDB stub, which it uses
-from there on to read register- and memory values from QEMU, and also to step its execution forward by increments of
-single instructions. To know what bytes of memory to record, it simultaneously reads from QEMU's log file, to where QEMU
-outputs its memory mappings every time they change (e.g., when a new page is allocated). The recorder thus keeps track
-of the memory pages allocated to the emulated process and records at each instruction all content of all allocated
-pages, in addition to all register contents, in a snapshot.
+from there on to read register- and memory values from QEMU, and also to step the emulation forward by increments of
+single guest instructions. To know what bytes of memory to record, it simultaneously reads from QEMU's log file, to
+where QEMU outputs its memory mappings every time they change (e.g., when a new page is allocated). The recorder thus
+keeps track of the memory pages allocated to the emulated process and records at each instruction all content of all
+allocated pages, in addition to all register contents, in a snapshot.
 
 Unfortunately, this approach turned out not only to be highly memory inefficient seeing as almost all memory of a
 process is irrelevant for each given single instruction, but also exceedingly slow---so much so that the system was
@@ -526,32 +530,12 @@ log files where the emulator chooses which data to dump). By considering as addi
 representation of an instruction's semantics, it can calculate the exact subset of a program's state that is needed to
 verify only that instruction, and record it in a \textit{minimal snapshot}.
 
-Minimal data to verify the correctness of one instruction encompasses information from \textbf{two} program states: The
-input state to the instruction, i.e., the state on which the instruction acts, and its output state, i.e., the state
-that the instruction produces; the former to compute the expected reference destination state, the latter to compare it
-to the reference state. Relevant data of the input state are input values to the instruction (its \textit{source
-operands}), while that of the output state encompasses the instruction's output values (its \textit{destination
-operands}). We can determine both from an instruction's symbolic equations.
-
-\tikzstyle{state_node} = [rectangle, draw=black, text centered, minimum width=2cm, minimum height=1cm]
-\tikzstyle{arrow} = [thick, ->, >=stealth]
-
-%\begin{wrapfigure}{R}{0.3\textwidth}
-\begin{figure}[htpb]
-\begin{center}
-\begin{tikzpicture}[scale=1, transform shape, node distance=2cm]
-    \node (prev) [state_node] {$S_{i-1}$};
-    \node (cur)  [state_node, below of=prev] {$S_{i}$};
-    \node (next) [state_node, below of=cur] {$S_{i+1}$};
-
-    \draw [arrow] (prev) -- node[anchor=west] {$\sigma_{i-1}$} (cur);
-    \draw [arrow] (cur)  -- node[anchor=west] {$\sigma_{i}$} (next);
-\end{tikzpicture}
-\end{center}
-\caption{Instruction data flow}%
-\label{fig:instr_data_flow}
-\end{figure}
-%\end{wrapfigure}
+Minimal data to verify an instruction's correctness encompasses information from \textbf{two} program states: The input
+state to the instruction, i.e., the state on which the instruction acts, and its output state, i.e., the state that the
+instruction produces; the former to compute the expected reference destination state, the latter to compare it to the
+reference state. Relevant data of the input state are input values to the instruction (its \textit{source operands}),
+while that of the output state encompasses the instruction's output values (its \textit{destination operands}). We can
+determine both from an instruction's symbolic equations.
 
 To create a minimal snapshot $s_i$ from a full program state $S^E_i$ so that it has all data required by the verifier to
 calculate the comparison to its respective truth state $\Delta_{S_i} = S_i - S^E_i$ and also calculate the next expected
@@ -569,6 +553,24 @@ truth state $S_{i+1} = \sigma_i(S^E_i) = \sigma_i(s_i)$ from it, the following i
         \texttt{rsp} in $S^E_{i-1}$ so that we can include memory at that address in $s_i$.
     \item $S^E_i$: The current emulator state that is to be reduced to $s_i$.
 \end{itemize}
+
+\tikzstyle{state_node} = [rectangle, draw=black, text centered, minimum width=2cm, minimum height=1cm]
+\tikzstyle{arrow} = [thick, ->, >=stealth]
+
+\begin{figure}[htpb]
+\begin{center}
+\begin{tikzpicture}[scale=1, transform shape, node distance=2cm]
+    \node (prev) [state_node] {$S_{i-1}$};
+    \node (cur)  [state_node, below of=prev] {$S_{i}$};
+    \node (next) [state_node, below of=cur] {$S_{i+1}$};
+
+    \draw [arrow] (prev) -- node[anchor=west] {$\sigma_{i-1}$} (cur);
+    \draw [arrow] (cur)  -- node[anchor=west] {$\sigma_{i}$} (next);
+\end{tikzpicture}
+\end{center}
+\caption{Instruction data flow}%
+\label{fig:instr_data_flow}
+\end{figure}
 
 \paragraph{Example} The instruction $x = \texttt{ADD [RDI+0x20], RAX}$ calculates \texttt{RAX + 64@[RDI+0x20]} and
 stores the result in \texttt{[RDI+0x20]}, also modifying some state flags in the process. We shall call the emulated
